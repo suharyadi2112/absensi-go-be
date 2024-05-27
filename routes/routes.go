@@ -17,6 +17,5 @@ func InitRoutes(e *echo.Echo) {
 
 	// Mengaktifkan CORS dengan konfigurasi kustom
 	e.Use(middleware.CORSWithConfig(config))
-
-	e.GET("/users", controllers.GetUsers)
+	e.GET("/get_absen_top", controllers.GetAbsenTop)
 }
