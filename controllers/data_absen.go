@@ -3,20 +3,11 @@ package controllers
 import (
 	db "absensi/config"
 	"absensi/models"
-	"database/sql"
 	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 )
-
-type ScannedAbsenTop struct {
-	IDAbsensi sql.NullInt64
-	FotoSiswa sql.NullString
-	FotoGuru  sql.NullString
-	NamaSiswa sql.NullString
-	NamaGuru  sql.NullString
-}
 
 // Handler untuk endpoint /users
 func GetAbsenTop(c echo.Context) error {
@@ -71,14 +62,14 @@ func GetAbsenTop(c echo.Context) error {
 	}
 
 	//custom return yang diperlukan response
-	var absentopResp []ScannedAbsenTop
+	var absentopResp []map[string]interface{}
 	for _, s := range absensi {
-		absentopResp = append(absentopResp, ScannedAbsenTop{
-			IDAbsensi: s.ID,
-			FotoSiswa: s.IDSiswa.Foto,
-			FotoGuru:  s.IDPengajar.Foto,
-			NamaSiswa: s.IDSiswa.NamaLengkap,
-			NamaGuru:  s.IDPengajar.NamaLengkap,
+		absentopResp = append(absentopResp, map[string]interface{}{
+			"IDAbsensi": s.ID.Int64,
+			"FotoSiswa": s.IDSiswa.Foto.String,
+			"FotoGuru":  s.IDPengajar.Foto.String,
+			"NamaSiswa": s.IDSiswa.NamaLengkap.String,
+			"NamaGuru":  s.IDPengajar.NamaLengkap.String,
 		})
 	}
 
