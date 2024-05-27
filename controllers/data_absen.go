@@ -84,5 +84,11 @@ func GetAbsenTop(c echo.Context) error {
 
 	defer rows.Close()
 
-	return c.JSON(http.StatusOK, absentopResp)
+	response := map[string]interface{}{
+		"AStatus":  "success",
+		"BMessage": "Get top absen retrieved",
+		"CData":    absentopResp,
+	}
+
+	return c.JSON(http.StatusOK, response)
 }
