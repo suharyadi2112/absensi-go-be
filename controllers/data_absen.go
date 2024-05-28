@@ -12,7 +12,7 @@ import (
 // Handler untuk endpoint /users
 func GetAbsenTop(c echo.Context) error {
 
-	dbG, _ := db.InitDB()
+	dbG, _ := db.InitDBMySql()
 
 	// Tentukan tanggal yang akan diambil
 	date := "2024-05-27"
