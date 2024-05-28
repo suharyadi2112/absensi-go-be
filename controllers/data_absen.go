@@ -70,6 +70,7 @@ func GetAbsenTop(c echo.Context) error {
 			"FotoGuru":  s.IDPengajar.Foto.String,
 			"NamaSiswa": s.IDSiswa.NamaLengkap.String,
 			"NamaGuru":  s.IDPengajar.NamaLengkap.String,
+			"Kelas":     s.IDKelas.Kelas.String,
 		})
 	}
 
