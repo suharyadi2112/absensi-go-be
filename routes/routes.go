@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"absensi/controllers"
+	"absensi/handler"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -17,5 +17,7 @@ func InitRoutes(e *echo.Echo) {
 
 	// Mengaktifkan CORS dengan konfigurasi kustom
 	e.Use(middleware.CORSWithConfig(config))
-	e.GET("/get_absen_top", controllers.GetAbsenTop)
+	e.GET("/get_absen_top", handler.GetAbsenTop)
+	e.POST("/post_absen", handler.PostAbsen)
+
 }

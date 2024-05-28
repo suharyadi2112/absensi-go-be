@@ -7,6 +7,7 @@ import (
 )
 
 func main() {
+
 	e := echo.New()
 
 	routes.InitRoutes(e)

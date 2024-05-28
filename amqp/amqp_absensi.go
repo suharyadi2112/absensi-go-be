@@ -1,15 +1,54 @@
 package main
 
 import (
-	db "absensi/config"
+	"fmt"
 	"log"
+	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/streadway/amqp"
 )
 
+var (
+	rabbitHost     string
+	rabbitPort     string
+	rabbitUser     string
+	rabbitPassword string
+)
+
+func init() {
+	err := godotenv.Load("../.env")
+	if err != nil {
+		log.Fatal("Error loading .env file", err.Error())
+	}
+
+	rabbitHost = os.Getenv("RABBIT_HOST")
+	rabbitPort = os.Getenv("RABBIT_PORT")
+	rabbitUser = os.Getenv("RABBIT_USER")
+	rabbitPassword = os.Getenv("RABBIT_PASSWORD")
+}
+
+// RABBIT MQ
+func InitRabbitmq() (*amqp.Connection, *amqp.Channel, error) {
+
+	fmt.Println(rabbitHost, rabbitPort, rabbitUser, rabbitPassword)
+
+	connStr := fmt.Sprintf("amqp://%s:%s@%s:%s/", rabbitUser, rabbitPassword, rabbitHost, rabbitPort)
+	conn, err := amqp.Dial(connStr)
+	if err != nil {
+		log.Fatal(err, "koneksi")
+	}
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Fatal(err, "koneksi 2")
+	}
+	return conn, ch, err
+}
+
 func main() {
 
-	conn, ch, err := db.InitRabbitmq()
+	conn, ch, err := InitRabbitmq()
 	if err != nil {
 		log.Fatalf("Failed to initialize RabbitMQ: %s", err.Error())
 	}
@@ -29,16 +68,6 @@ func main() {
 		log.Fatalf("Gagal mendeklarasikan antrian: %v", err)
 	}
 
-	log.Println("Waiting for messages...")
-	go consumeMessages(ch, q)
-
-	log.Println("Tekan CTRL+C untuk keluar")
-	forever := make(chan bool)
-	<-forever
-}
-
-func consumeMessages(ch *amqp.Channel, q amqp.Queue) {
-
 	msgs, err := ch.Consume(
 		q.Name, // antrian
 		"",     // konsumen
@@ -52,8 +81,16 @@ func consumeMessages(ch *amqp.Channel, q amqp.Queue) {
 		log.Printf("Gagal mendaftarkan konsumen: %v", err)
 	}
 
-	for d := range msgs {
-		log.Printf("Menerima pesan: %s", d.Body)
-		d.Ack(false) // Kirim ack setelah pesan diproses berhasil
-	}
+	log.Println("Menunggu pesan...")
+	forever := make(chan bool)
+
+	go func() {
+		for d := range msgs {
+			log.Printf("Menerima pesan: %s", d.Body)
+			d.Ack(false)
+		}
+	}()
+
+	log.Println("Tekan CTRL+C untuk keluar")
+	<-forever
 }
