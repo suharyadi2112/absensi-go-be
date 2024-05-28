@@ -3,6 +3,8 @@ package main
 import (
 	db "absensi/config"
 	"log"
+
+	"github.com/streadway/amqp"
 )
 
 func main() {
@@ -14,6 +16,7 @@ func main() {
 	defer conn.Close()
 	defer ch.Close()
 
+	log.Println("Mendeklarasikan antrian...")
 	q, err := ch.QueueDeclare(
 		"absensi", // Nama antrian
 		true,      // durable
@@ -23,32 +26,34 @@ func main() {
 		nil,       // arguments
 	)
 	if err != nil {
-		log.Fatalf("Failed to declare a queue: %v", err.Error())
+		log.Fatalf("Gagal mendeklarasikan antrian: %v", err)
 	}
 
+	log.Println("Waiting for messages...")
+	go consumeMessages(ch, q)
+
+	log.Println("Tekan CTRL+C untuk keluar")
+	forever := make(chan bool)
+	<-forever
+}
+
+func consumeMessages(ch *amqp.Channel, q amqp.Queue) {
+
 	msgs, err := ch.Consume(
-		q.Name, // Nama antrian
-		"",     // consumer
-		true,   // auto-ack
-		false,  // exclusive
+		q.Name, // antrian
+		"",     // konsumen
+		false,  // auto-ack (false untuk manual ack)
+		false,  // eksklusif
 		false,  // no-local
 		false,  // no-wait
 		nil,    // args
 	)
 	if err != nil {
-		log.Fatalf("Failed to register a consumer: %v", err.Error())
+		log.Printf("Gagal mendaftarkan konsumen: %v", err)
 	}
 
-	log.Println("Waiting for messages...")
-	forever := make(chan bool)
-
-	go func() {
-		for d := range msgs {
-			log.Printf("Menerima pesan: %s", d.Body)
-		}
-	}()
-
-	log.Println("Tekan CTRL+C untuk keluar")
-	<-forever
-
+	for d := range msgs {
+		log.Printf("Menerima pesan: %s", d.Body)
+		d.Ack(false) // Kirim ack setelah pesan diproses berhasil
+	}
 }
