@@ -43,12 +43,12 @@ func InitDBMySql() (*sql.DB, error) {
 	dsn := dbUser + ":" + dbPassword + "@tcp(" + dbHost + ":" + dbPort + ")/" + dbName
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		log.Fatal(err.Error(), "koneksi mysql 2")
+		fmt.Println(err.Error(), "koneksi mysql 2")
 	}
 
 	err = db.Ping()
 	if err != nil {
-		log.Fatal(err.Error(), "koneksi mysql 2")
+		fmt.Println(err.Error(), "koneksi mysql 2")
 	}
 
 	log.Println("Connected to MySQL database")

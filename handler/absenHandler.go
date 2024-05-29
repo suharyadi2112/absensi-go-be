@@ -1,56 +1,37 @@
 package handler
 
 import (
-	cont "absensi/controllers"
+	"absensi/usecase"
+	"encoding/base64"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/skip2/go-qrcode"
 )
 
 // Handler untuk endpoint /users
-func GetAbsenTop(c echo.Context) error {
+func GetAbsenTopHandler(c echo.Context) error {
 
 	currentTime := time.Now()
-	date := currentTime.Format("2006-01-02")
+	tanggalhariIni := currentTime.Format("2006-01-02")
 
-	fmt.Println("Tanggal sekarang - get absen top:", date)
-
-	handler, err := cont.NewCon()
-	if err != nil {
-		fmt.Println("Error:", err)
-		return err
-	}
-
-	result := handler.GetAbsenTopQuery(date)
-	rowsData := result.DataAbsen
-	err = result.Err
+	absenTopData, err := usecase.GetAbsenTopUsecase(tanggalhariIni)
 
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 
-	//custom return yang diperlukan response
-	var absentopResp []map[string]interface{}
-	for _, s := range rowsData {
-		absentopResp = append(absentopResp, map[string]interface{}{
-			"IDAbsensi": s.ID.Int64,
-			"FotoSiswa": s.IDSiswa.Foto.String,
-			"FotoGuru":  s.IDPengajar.Foto.String,
-			"NamaSiswa": s.IDSiswa.NamaLengkap.String,
-			"NamaGuru":  s.IDPengajar.NamaLengkap.String,
-			"Kelas":     s.IDKelas.Kelas.String,
-		})
-	}
-
-	response := map[string]interface{}{
+	responseUsecase := map[string]interface{}{
 		"AStatus":  "success",
 		"BMessage": "Get top absen retrieved",
-		"CData":    absentopResp,
+		"CData":    absenTopData,
 	}
 
-	return c.JSON(http.StatusOK, response)
+	return c.JSON(http.StatusOK, responseUsecase)
+
 }
 
 // Handler untuk endpoint /users
@@ -66,4 +47,30 @@ func PostAbsen(c echo.Context) error {
 	fmt.Println("Tanggal sekarang:", date)
 
 	return nil
+}
+
+func QrCode(c echo.Context) error {
+
+	// Data to be encoded into QR code
+	data := "rss"
+
+	// Generate QR code as []byte
+	qrCode, err := qrcode.Encode(data, qrcode.Medium, 256)
+	if err != nil {
+		log.Fatal("Error generating QR code: ", err)
+	}
+
+	// Convert []byte to base64 string
+	qrCodeBase64 := base64.StdEncoding.EncodeToString(qrCode)
+
+	// Print or return the base64 string
+	log.Println("QR code base64:", qrCodeBase64)
+
+	response := map[string]interface{}{
+		"AStatus":  "success",
+		"BMessage": "Success generate",
+		"CData":    qrCodeBase64,
+	}
+
+	return c.JSON(http.StatusOK, response)
 }
