@@ -3,16 +3,21 @@ package handler
 import (
 	"absensi/usecase"
 	"encoding/base64"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/skip2/go-qrcode"
 )
 
-// Handler untuk endpoint /users
+// Struct untuk menangkap data JSON
+type AbsenForm struct {
+	FormCode string `json:"form_code" validate:"required"`
+}
+
+// get absen top
 func GetAbsenTopHandler(c echo.Context) error {
 
 	currentTime := time.Now()
@@ -34,19 +39,38 @@ func GetAbsenTopHandler(c echo.Context) error {
 
 }
 
-// Handler untuk endpoint /users
+// post absen
 func PostAbsen(c echo.Context) error {
 
-	// Tentukan tanggal yang akan diambil
-	// Mendapatkan tanggal sekarang
-	currentTime := time.Now()
+	u := &AbsenForm{}
+	if err := c.Bind(u); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": "Invalid request payload",
+		})
+	}
 
-	// Mengonversi tanggal ke dalam format yang diinginkan (YYYY-MM-DD)
-	date := currentTime.Format("2006-01-02")
+	validator := validator.New()
+	err := validator.Struct(u)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"message": err.Error(),
+		})
+	}
+	formCode := u.FormCode
 
-	fmt.Println("Tanggal sekarang:", date)
+	dataAbsenPost, err := usecase.PostAbsenTopUsecase(formCode)
 
-	return nil
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	responseUsecase := map[string]interface{}{
+		"AStatus":  "success",
+		"BMessage": "Get top absen retrieved",
+		"CData":    dataAbsenPost,
+	}
+
+	return c.JSON(http.StatusOK, responseUsecase)
 }
 
 func QrCode(c echo.Context) error {

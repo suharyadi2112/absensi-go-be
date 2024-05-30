@@ -26,7 +26,7 @@ func NewCon() (*Conn, error) {
 }
 
 type AbsenTopResult struct {
-	DataAbsen []models.Absensi
+	DataAbsen []*models.Absensi
 	Err       error
 }
 
@@ -58,9 +58,9 @@ func (h *Conn) GetAbsenTopQuery(dateS string) AbsenTopResult {
 
 	defer rows.Close()
 
-	var absensi []models.Absensi
+	var absensi []*models.Absensi
 	for rows.Next() {
-		var a models.Absensi
+		var a = new(models.Absensi)
 		if err := rows.Scan(
 			&a.ID, &a.IDPengajar.ID, &a.IDSiswa.ID, &a.IDKelas.ID,
 			&a.Absensi, &a.Tanggal, &a.Masuk, &a.Keluar,
@@ -74,4 +74,11 @@ func (h *Conn) GetAbsenTopQuery(dateS string) AbsenTopResult {
 	}
 
 	return AbsenTopResult{absensi, err}
+}
+
+func (h *Conn) PostAbsenTopQuery(dateS string) AbsenTopResult {
+
+	var absensi []*models.Absensi
+	return AbsenTopResult{absensi, nil}
+
 }
