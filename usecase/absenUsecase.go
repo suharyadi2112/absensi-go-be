@@ -32,12 +32,13 @@ func GetAbsenTopUsecase(tanggalhariIni string) ([]map[string]interface{}, error)
 	var absentopResp []map[string]interface{}
 	for _, s := range rowsData {
 		absentopResp = append(absentopResp, map[string]interface{}{
-			"IDAbsensi": s.ID.Int64,
-			"FotoSiswa": s.IDSiswa.Foto.String,
-			"FotoGuru":  s.IDPengajar.Foto.String,
-			"NamaSiswa": s.IDSiswa.NamaLengkap.String,
-			"NamaGuru":  s.IDPengajar.NamaLengkap.String,
-			"Kelas":     s.IDKelas.Kelas.String,
+			"IDAbsensi":  s.ID.Int64,
+			"FotoSiswa":  s.IDSiswa.Foto.String,
+			"FotoGuru":   s.IDPengajar.Foto.String,
+			"NamaSiswa":  s.IDSiswa.NamaLengkap.String,
+			"NamaGuru":   s.IDPengajar.NamaLengkap.String,
+			"Kelas":      s.IDKelas.Kelas.String,
+			"IDPengajar": s.IDPengajar.ID.Int64,
 		})
 	}
 

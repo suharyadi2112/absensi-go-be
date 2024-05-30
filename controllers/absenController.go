@@ -62,7 +62,7 @@ func (h *Conn) GetAbsenTopQuery(dateS string) AbsenTopResult {
 	for rows.Next() {
 		var a models.Absensi
 		if err := rows.Scan(
-			&a.ID, &a.IDSiswa.ID, &a.IDKelas.ID, &a.IDPengajar.ID,
+			&a.ID, &a.IDPengajar.ID, &a.IDSiswa.ID, &a.IDKelas.ID,
 			&a.Absensi, &a.Tanggal, &a.Masuk, &a.Keluar,
 			&a.StatusMasuk, &a.StatusKeluar, &a.NotifikasiMasuk, &a.NotifikasiKeluar,
 			&a.Updated, &a.UpdateAbsensi,

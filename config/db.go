@@ -38,8 +38,6 @@ func init() {
 // MYSQL
 func InitDBMySql() (*sql.DB, error) {
 
-	fmt.Println(dbUser, dbPassword, dbHost, dbPort, dbName)
-
 	dsn := dbUser + ":" + dbPassword + "@tcp(" + dbHost + ":" + dbPort + ")/" + dbName
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
@@ -50,8 +48,6 @@ func InitDBMySql() (*sql.DB, error) {
 	if err != nil {
 		fmt.Println(err.Error(), "koneksi mysql 2")
 	}
-
-	log.Println("Connected to MySQL database")
 
 	return db, nil
 }
