@@ -73,3 +73,11 @@ type Pengajar struct {
 	Created       sql.NullString `json:"created"`
 	Updated       sql.NullString `json:"updated"`
 }
+type CountSiswa struct {
+	DataCountSiswa int
+	Err            error
+}
+type CountGuru struct {
+	DataCountGuru int
+	Err           error
+}

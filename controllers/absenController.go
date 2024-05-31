@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 )
 
 // Conn struct yang menampung instance database
@@ -25,12 +26,12 @@ func NewCon() (*Conn, error) {
 	}, nil
 }
 
-type AbsenTopResult struct {
-	DataAbsen []*models.Absensi
-	Err       error
+type AbsensiDetailJamMasuk struct {
+	Absensi *models.Absensi
+	JMasuk  sql.NullString
 }
 
-func (h *Conn) GetAbsenTopQuery(dateS string) AbsenTopResult {
+func (h *Conn) GetAbsenTopController(dateS string) (DataAbsen []*models.Absensi, err error) {
 
 	// Eksekusi kueri SQL
 	rows, err := h.DB.Query(`
@@ -53,7 +54,7 @@ func (h *Conn) GetAbsenTopQuery(dateS string) AbsenTopResult {
 		LIMIT 5`, dateS)
 
 	if err != nil {
-		return AbsenTopResult{nil, err}
+		return nil, nil
 	}
 
 	defer rows.Close()
@@ -68,17 +69,111 @@ func (h *Conn) GetAbsenTopQuery(dateS string) AbsenTopResult {
 			&a.Updated, &a.UpdateAbsensi,
 			&a.IDSiswa.NamaLengkap, &a.IDSiswa.Foto, &a.IDKelas.Kelas, &a.IDPengajar.NamaLengkap, &a.IDPengajar.Foto,
 		); err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 		absensi = append(absensi, a)
 	}
 
-	return AbsenTopResult{absensi, err}
+	return absensi, nil
 }
 
-func (h *Conn) PostAbsenTopQuery(dateS string) AbsenTopResult {
+// Update absensi
+func (h *Conn) UpdateAbsenController(Keluar, tanggalHariIni string, idSiswa, idKelas int64) (err error) {
 
-	var absensi []*models.Absensi
-	return AbsenTopResult{absensi, nil}
+	fmt.Println(Keluar, "tytyty")
+
+	// Prepare the UPDATE query
+	stmt, err := h.DB.Prepare("UPDATE absensi SET keluar = ?, notif_out = 0 WHERE id_siswa = ? AND tgl = ? AND id_kelas = ?")
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+	defer stmt.Close()
+	// Execute the UPDATE query
+	_, err = stmt.Exec(Keluar, idSiswa, tanggalHariIni, idKelas)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+	fmt.Println("success update absen", idSiswa, idKelas)
+
+	return nil
+}
+
+func (h *Conn) PostAbsenTopController(formCode string) (DataAbsen []*models.Absensi, err error) {
+	return nil, nil
+}
+
+func (h *Conn) GetOneAbsensiController(idSiswa, idKelas int64, date string) (dataOneAbsen *AbsensiDetailJamMasuk, err error) {
+
+	query := `SELECT absensi.id, absensi.keluar, CONCAT(tgl, ' ', masuk) as j_masuk FROM absensi WHERE id_siswa = ? AND tgl = ? AND id_kelas = ?`
+
+	row := h.DB.QueryRow(query, idSiswa, date, idKelas)
+
+	var absensi models.Absensi
+	var jMasuk sql.NullString
+
+	err = row.Scan(&absensi.ID, &absensi.Keluar, &jMasuk)
+	if err != nil {
+		return nil, err
+	}
+
+	absensiDetail := &AbsensiDetailJamMasuk{
+		Absensi: &absensi,
+		JMasuk:  jMasuk, // Convert 'jMasuk' to string
+	}
+
+	return absensiDetail, nil
+}
+
+func (h *Conn) GetSiswaController(nis string) (DataSiswa *models.Siswa, err error) {
+
+	var s models.Siswa
+	err = h.DB.QueryRow(`SELECT
+						s.id_siswa,
+						s.id_kelas,
+						s.nis,
+						s.nama_lengkap,
+						k.kelas,
+						s.alamat,
+						s.foto
+					FROM siswa s
+					LEFT JOIN kelas k ON s.id_kelas = k.id_kelas
+					LEFT JOIN orangtua o ON s.nis = o.nis
+					WHERE s.nis = ?`, nis).Scan(&s.ID, &s.IDKelas.ID, &s.NIS, &s.NamaLengkap, &s.IDKelas.Kelas, &s.Alamat, &s.Foto)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &s, nil
+}
+
+func (h *Conn) CountSiswaController(formCode string) (DataCountSiswa int, err error) {
+
+	sanitizedCode := strings.ReplaceAll(formCode, ".", "")
+	sanitizedCode = strings.ReplaceAll(sanitizedCode, " ", "")
+
+	var qSiswa int
+	err = h.DB.QueryRow(`SELECT COUNT(*) FROM siswa WHERE nis = ?`, sanitizedCode).Scan(&qSiswa)
+	if err != nil {
+		return 0, err
+	}
+
+	return qSiswa, nil
+
+}
+func (h *Conn) CountGuruController(formCode string) (DataCountGuru int, err error) {
+
+	sanitizedCode := strings.ReplaceAll(formCode, ".", "")
+	sanitizedCode = strings.ReplaceAll(sanitizedCode, " ", "")
+
+	var qGuru int
+	err = h.DB.QueryRow("SELECT COUNT(*) FROM pengajar WHERE nip = ?", sanitizedCode).Scan(&qGuru)
+	if err != nil {
+		return 0, nil
+	}
+
+	return qGuru, nil
 
 }

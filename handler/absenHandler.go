@@ -17,13 +17,22 @@ type AbsenForm struct {
 	FormCode string `json:"form_code" validate:"required"`
 }
 
+var currentTime time.Time
+var tanggalHariIni string
+var datetimeHariini string
+var timeonlyHariini string
+
+func init() {
+	currentTime = time.Now()
+	tanggalHariIni = currentTime.Format("2006-01-02")
+	datetimeHariini = currentTime.Format("2006-01-02 15:04:05")
+	timeonlyHariini = currentTime.Format("15:04:05")
+}
+
 // get absen top
 func GetAbsenTopHandler(c echo.Context) error {
 
-	currentTime := time.Now()
-	tanggalhariIni := currentTime.Format("2006-01-02")
-
-	absenTopData, err := usecase.GetAbsenTopUsecase(tanggalhariIni)
+	absenTopData, err := usecase.GetAbsenTopUsecase(tanggalHariIni)
 
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -58,7 +67,7 @@ func PostAbsen(c echo.Context) error {
 	}
 	formCode := u.FormCode
 
-	dataAbsenPost, err := usecase.PostAbsenTopUsecase(formCode)
+	dataAbsenPost, err := usecase.PostAbsenTopUsecase(formCode, tanggalHariIni, datetimeHariini, timeonlyHariini)
 
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
