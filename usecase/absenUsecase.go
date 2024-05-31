@@ -3,6 +3,7 @@ package usecase
 import (
 	cont "absensi/controllers"
 	"fmt"
+	"net/url"
 	"time"
 )
 
@@ -47,7 +48,7 @@ func GetAbsenTopUsecase(tanggalhariIni string) ([]map[string]interface{}, error)
 }
 
 // // use case simpan tap scan absen
-func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHariini string) ([]map[string]interface{}, error) {
+func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHariini string) (map[string]interface{}, error) {
 
 	fmt.Println("Form code - post absen:", formCode)
 
@@ -55,7 +56,6 @@ func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHari
 	if err != nil {
 		return nil, err
 	}
-
 	countGuru, err := controller.CountGuruController(formCode)
 	if err != nil {
 		return nil, err
@@ -70,12 +70,6 @@ func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHari
 
 		id_siswa := resSiswa.ID.Int64
 		id_kelas := resSiswa.IDKelas.ID.Int64
-		// nis := resSiswa.NIS
-		// nama := resSiswa.NamaLengkap
-		// kelas := resSiswa.IDKelas.Kelas
-		// alamat := resSiswa.Alamat
-		// foto := resSiswa.Foto
-
 		cAbsen, err := controller.GetOneAbsensiController(id_siswa, id_kelas, tanggalhariIni)
 
 		if err != nil {
@@ -103,11 +97,24 @@ func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHari
 					if err != nil {
 						return nil, err
 					}
+					// Create response structure
+					responseItem := map[string]interface{}{
+						"FormCode":  resSiswa.NIS.String,
+						"NamaSiswa": resSiswa.NamaLengkap.String,
+						"Kelas":     resSiswa.IDKelas.Kelas.String,
+						"Alamat":    resSiswa.Alamat.String,
+						"Foto":      url.PathEscape(resSiswa.Foto.String),
+						"AbsenAt":   dateTimehariini,
+						"tipe":      "siswa",
+					}
+					return responseItem, nil
 				}
+			} else {
+				fmt.Println("belum ada jam masuk")
 			}
 		}
-
 	}
+
 	if countGuru > 0 {
 		fmt.Println("ada guru")
 	}
