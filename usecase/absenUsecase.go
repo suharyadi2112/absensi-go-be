@@ -114,12 +114,61 @@ func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHari
 				}
 			} else { //kemungkinan terjadi saat data absen ada tapi jam masuk maupun pulang kosong/null
 				responseItem := map[string]interface{}{
-					"Message": "Terjadi kesalahan hubungi admin",
+					"Message": "Terjadi kesalahan hubungi admin #sks88",
 				}
 				return responseItem, 400, nil
 			}
-		} else {
-			fmt.Println("sini")
+
+		} else { // absen maasuk
+
+			parsedTime, err := time.Parse("15:04:05", timeonlyHariini)
+			if err != nil {
+				fmt.Println("Error parsing time:", err)
+				return nil, 500, err
+			}
+			morningStart, _ := time.Parse("15:04:05", "05:00:00")
+			noonEnd, _ := time.Parse("15:04:05", "12:00:00")
+
+			afternunStart, _ := time.Parse("15:04:05", "12:00:00")
+			niteEnd, _ := time.Parse("15:04:05", "21:00:00")
+
+			isMorning := parsedTime.After(morningStart) && parsedTime.Before(noonEnd)
+			isNite := parsedTime.After(afternunStart) && parsedTime.Before(niteEnd)
+
+			fmt.Println(isMorning, isNite)
+
+			var tipeAbsen string
+			if isMorning {
+				tipeAbsen = "masuk"
+				err := controller.PostAbsenController(timeonlyHariini, tanggalhariIni, tipeAbsen, id_siswa, id_kelas)
+				if err != nil {
+					return nil, 500, err
+				}
+			} else if isNite { //diatas jam 12 siang kemungkinan absensi pulang
+				tipeAbsen = "keluar"
+				err := controller.PostAbsenController(timeonlyHariini, tanggalhariIni, tipeAbsen, id_siswa, id_kelas)
+				if err != nil {
+					return nil, 500, err
+				}
+			} else {
+				responseItem := map[string]interface{}{
+					"Message": "Terjadi kesalahan hubungi admin #kn3k2",
+				}
+				return responseItem, 400, nil
+			}
+			// Create response structure
+			responseItem := map[string]interface{}{
+				"FormCode":  resSiswa.NIS.String,
+				"NamaSiswa": resSiswa.NamaLengkap.String,
+				"Kelas":     resSiswa.IDKelas.Kelas.String,
+				"Alamat":    resSiswa.Alamat.String,
+				"Foto":      url.PathEscape(resSiswa.Foto.String),
+				"AbsenAt":   dateTimehariini,
+				"Tipe":      "siswa",
+				"TipeAbsen": tipeAbsen,
+			}
+			return responseItem, 200, nil
+
 		}
 	}
 

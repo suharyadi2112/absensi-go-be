@@ -4,6 +4,7 @@ import (
 	db "absensi/config"
 	"absensi/models"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -100,8 +101,33 @@ func (h *Conn) UpdateAbsenController(Keluar, tanggalHariIni string, idSiswa, idK
 	return nil
 }
 
-func (h *Conn) PostAbsenTopController(formCode string) (DataAbsen []*models.Absensi, err error) {
-	return nil, nil
+func (h *Conn) PostAbsenController(Masuk, tanggalHariIni, tipeAbsen string, idSiswa, idKelas int64) (err error) {
+
+	var query string
+
+	// Prepare the SQL statement
+	if tipeAbsen == "masuk" {
+		query = "INSERT INTO absensi (id_siswa, id_kelas, absensi, tgl, masuk, notif_in) VALUES (?, ?, ?, ?, ?, ?)"
+	} else if tipeAbsen == "keluar" {
+		query = "INSERT INTO absensi (id_siswa, id_kelas, absensi, tgl, keluar, notif_in) VALUES (?, ?, ?, ?, ?, ?)"
+	} else {
+		return errors.New("invalid tipeAbsen")
+	}
+	stmt, err := h.DB.Prepare(query)
+	if err != nil {
+		log.Fatal("Error preparing SQL statement:", err)
+		return err
+	}
+	defer stmt.Close()
+
+	// Execute the SQL statement
+	_, err = stmt.Exec(idSiswa, idKelas, "H", tanggalHariIni, Masuk, "0")
+	if err != nil {
+		log.Fatal("Error executing SQL statement:", err)
+		return err
+	}
+
+	return nil
 }
 
 func (h *Conn) GetOneAbsensiController(idSiswa, idKelas int64, date string) (dataOneAbsen *AbsensiDetailJamMasuk, err error) {

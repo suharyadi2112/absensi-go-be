@@ -84,7 +84,7 @@ func PostAbsen(c echo.Context) error {
 
 	responseUsecase := map[string]interface{}{
 		"AStatus":  "Success",
-		"BMessage": "Succees post absen",
+		"BMessage": "Succees process absen",
 		"CData":    dataAbsenPost,
 	}
 
