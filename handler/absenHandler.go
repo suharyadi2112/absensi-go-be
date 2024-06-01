@@ -39,7 +39,7 @@ func GetAbsenTopHandler(c echo.Context) error {
 	}
 
 	responseUsecase := map[string]interface{}{
-		"AStatus":  "success",
+		"AStatus":  "Success",
 		"BMessage": "Get top absen retrieved",
 		"CData":    absenTopData,
 	}
@@ -67,19 +67,29 @@ func PostAbsen(c echo.Context) error {
 	}
 	formCode := u.FormCode
 
-	dataAbsenPost, err := usecase.PostAbsenTopUsecase(formCode, tanggalHariIni, datetimeHariini, timeonlyHariini)
+	dataAbsenPost, status, err := usecase.PostAbsenTopUsecase(formCode, tanggalHariIni, datetimeHariini, timeonlyHariini)
 
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 
+	if status == 400 {
+		responseUsecase := map[string]interface{}{
+			"AStatus":  "Failed",
+			"BMessage": dataAbsenPost,
+			"CData":    nil,
+		}
+		return c.JSON(http.StatusBadRequest, responseUsecase)
+	}
+
 	responseUsecase := map[string]interface{}{
-		"AStatus":  "success",
-		"BMessage": "Get top absen retrieved",
+		"AStatus":  "Success",
+		"BMessage": "Succees post absen",
 		"CData":    dataAbsenPost,
 	}
 
 	return c.JSON(http.StatusOK, responseUsecase)
+
 }
 
 func QrCode(c echo.Context) error {

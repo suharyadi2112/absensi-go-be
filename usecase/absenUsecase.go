@@ -48,24 +48,24 @@ func GetAbsenTopUsecase(tanggalhariIni string) ([]map[string]interface{}, error)
 }
 
 // // use case simpan tap scan absen
-func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHariini string) (map[string]interface{}, error) {
+func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHariini string) (res map[string]interface{}, codeHttp int, err error) {
 
 	fmt.Println("Form code - post absen:", formCode)
 
 	countSiswa, err := controller.CountSiswaController(formCode)
 	if err != nil {
-		return nil, err
+		return nil, 500, err
 	}
 	countGuru, err := controller.CountGuruController(formCode)
 	if err != nil {
-		return nil, err
+		return nil, 500, err
 	}
 
 	if countSiswa > 0 {
 
 		resSiswa, err := controller.GetSiswaController(formCode)
 		if err != nil {
-			return nil, err
+			return nil, 500, err
 		}
 
 		id_siswa := resSiswa.ID.Int64
@@ -73,11 +73,10 @@ func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHari
 		cAbsen, err := controller.GetOneAbsensiController(id_siswa, id_kelas, tanggalhariIni)
 
 		if err != nil {
-			return nil, err
+			return nil, 500, err
 		}
 
 		if cAbsen != nil {
-
 			var jamFixCon int
 			jam_masuk := cAbsen.JMasuk
 			keluar := cAbsen.Absensi.Keluar
@@ -85,17 +84,16 @@ func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHari
 			if jam_masuk.Valid { //tidak boleh null
 				jamFix, err := calculateHoursDifference(dateTimehariini, jam_masuk.String) //cek veda jam
 				if err != nil {
-					return nil, err
+					return nil, 500, err
 				}
 				jamFixCon = jamFix //assign jam fix
 				fmt.Println(jamFix, "masokkk")
 			}
-
 			if jamFixCon > 0 {
 				if !keluar.Valid {
 					err := controller.UpdateAbsenController(timeonlyHariini, tanggalhariIni, id_siswa, id_kelas)
 					if err != nil {
-						return nil, err
+						return nil, 500, err
 					}
 					// Create response structure
 					responseItem := map[string]interface{}{
@@ -105,13 +103,23 @@ func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHari
 						"Alamat":    resSiswa.Alamat.String,
 						"Foto":      url.PathEscape(resSiswa.Foto.String),
 						"AbsenAt":   dateTimehariini,
-						"tipe":      "siswa",
+						"Tipe":      "siswa",
 					}
-					return responseItem, nil
+					return responseItem, 200, nil
+				} else {
+					responseItem := map[string]interface{}{
+						"Message": "Anda sudah melakukan absensi",
+					}
+					return responseItem, 400, nil
 				}
-			} else {
-				fmt.Println("belum ada jam masuk")
+			} else { //kemungkinan terjadi saat data absen ada tapi jam masuk maupun pulang kosong/null
+				responseItem := map[string]interface{}{
+					"Message": "Terjadi kesalahan hubungi admin",
+				}
+				return responseItem, 400, nil
 			}
+		} else {
+			fmt.Println("sini")
 		}
 	}
 
@@ -119,7 +127,7 @@ func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHari
 		fmt.Println("ada guru")
 	}
 
-	return nil, nil
+	return nil, 200, nil
 }
 
 func calculateHoursDifference(datetime, j_masuk string) (jMasukDiff int, err error) {

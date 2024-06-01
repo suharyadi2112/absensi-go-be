@@ -114,7 +114,11 @@ func (h *Conn) GetOneAbsensiController(idSiswa, idKelas int64, date string) (dat
 	var jMasuk sql.NullString
 
 	err = row.Scan(&absensi.ID, &absensi.Keluar, &jMasuk)
-	if err != nil {
+
+	if err == sql.ErrNoRows {
+		// Data absen tidak ditemukan
+		return nil, nil // Bukan error 500
+	} else if err != nil {
 		return nil, err
 	}
 
