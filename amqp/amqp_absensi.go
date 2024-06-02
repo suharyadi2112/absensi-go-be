@@ -1,62 +1,131 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
-	"os"
+	"sync"
 
-	"github.com/joho/godotenv"
+	dbRab "absensi/config"
+	cont "absensi/controllers"
+
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
 var (
-	rabbitHost     string
-	rabbitPort     string
-	rabbitUser     string
-	rabbitPassword string
+	controller *cont.Conn
 )
 
-func init() {
-	err := godotenv.Load("../.env")
-	if err != nil {
-		log.Fatal("Error loading .env file", err.Error())
-	}
-
-	rabbitHost = os.Getenv("RABBIT_HOST")
-	rabbitPort = os.Getenv("RABBIT_PORT")
-	rabbitUser = os.Getenv("RABBIT_USER")
-	rabbitPassword = os.Getenv("RABBIT_PASSWORD")
+type ConnAmqpAbsen struct {
+	RabMQ *amqp.Channel
+}
+type PayloadRabbit struct {
+	IdKelas        int64  `json:"IdKelas"`
+	IdSiswa        int64  `json:"IdSiswa"`
+	JenisProses    string `json:"JenisProses"`
+	TanggalHariIni string `json:"TanggalHariIni"`
+	TipeAbsen      string `json:"TipeAbsen"`
+	TimeOnly       string `json:"timeOnly"`
 }
 
-// RABBIT MQ
-func InitRabbitmq() (*amqp.Connection, *amqp.Channel, error) {
+func init() {
+	logrus.SetFormatter(&logrus.JSONFormatter{})
 
-	fmt.Println(rabbitHost, rabbitPort, rabbitUser, rabbitPassword)
-
-	connStr := fmt.Sprintf("amqp://%s:%s@%s:%s/", rabbitUser, rabbitPassword, rabbitHost, rabbitPort)
-	conn, err := amqp.Dial(connStr)
+	var err error
+	controller, err = cont.NewCon()
 	if err != nil {
-		log.Fatal(err, "koneksi")
+		panic(err) // Handle error appropriately
+	}
+}
+
+// Fungsi untuk inisialisasi handler dengan instance database
+func NewCon() (*ConnAmqpAbsen, error) {
+	rabG, err := dbRab.InitRabbitMQ()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize rabbit MQ: %w", err)
 	}
 
-	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatal(err, "koneksi 2")
-	}
-	return conn, ch, err
+	return &ConnAmqpAbsen{
+		RabMQ: rabG,
+	}, nil
 }
 
 func main() {
 
-	conn, ch, err := InitRabbitmq()
+	myInstance, err := NewCon() //koneksi
 	if err != nil {
-		log.Fatalf("Failed to initialize RabbitMQ: %s", err.Error())
+		log.Fatalf("Gagal menginisialisasi koneksi RabbitMQ: %v", err)
 	}
-	defer conn.Close()
-	defer ch.Close()
+	defer myInstance.RabMQ.Close()
 
-	log.Println("Mendeklarasikan antrian...")
-	q, err := ch.QueueDeclare(
+	msgChannel := make(chan amqp.Delivery, 100) //buat chanel
+	var wg sync.WaitGroup                       //WaitGroup untuk menunggu semua worker selesai
+
+	numWorkers := 5 // jumlah worker
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go worker(msgChannel, &wg)
+	}
+
+	go myInstance.ProcessAmqpAbsen(msgChannel) // proses pesan\
+	logrus.Info("menunggu pesan")
+	wg.Wait() // Menunggu semua worker selesai
+
+}
+
+func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
+	defer wg.Done()
+	// Konfigurasi Logrus
+	logrus.SetLevel(logrus.InfoLevel)
+
+	for d := range msgChannel {
+		log.Printf("Menerima pesan: %s", d.Body)
+
+		var payload PayloadRabbit
+		if err := json.Unmarshal(d.Body, &payload); err != nil {
+			log.Printf("Error decoding JSON: %s", err.Error())
+			continue
+		}
+
+		jenisProses := payload.JenisProses
+		IdKelas := payload.IdKelas
+		IdSiswa := payload.IdSiswa
+		TanggalHariIni := payload.TanggalHariIni
+		TipeAbsen := payload.TipeAbsen
+		TimeOnly := payload.TimeOnly
+
+		if jenisProses == "satu" {
+
+			err := controller.UpdateAbsenController(TimeOnly, TanggalHariIni, IdSiswa, IdKelas) //tanpa tipeabsen
+			if err != nil {
+				logrus.Errorf("Error update absen controller amqp satu: %s", err.Error())
+				continue
+			}
+
+		} else if jenisProses == "dua" || jenisProses == "tiga" {
+
+			// untuk absen masuk
+			err := controller.PostAbsenController(TimeOnly, TanggalHariIni, TipeAbsen, IdSiswa, IdKelas)
+			if err != nil {
+				logrus.Errorf("Error post absen controller amqp dua | tiga: %s", err.Error())
+				continue
+			}
+
+		} else {
+			logrus.Info("tanpa tipe absen")
+		}
+
+		logrus.Info("succes")
+
+		// Mengakui pesan yang diterima
+		d.Ack(false)
+	}
+}
+
+func (amqp *ConnAmqpAbsen) ProcessAmqpAbsen(msgChannel chan<- amqp.Delivery) {
+	// Mendeklarasikan antrian
+	q, err := amqp.RabMQ.QueueDeclare(
 		"absensi", // Nama antrian
 		true,      // durable
 		false,     // delete when unused
@@ -68,7 +137,8 @@ func main() {
 		log.Fatalf("Gagal mendeklarasikan antrian: %v", err)
 	}
 
-	msgs, err := ch.Consume(
+	// Menunggu dan menerima pesan
+	msgs, err := amqp.RabMQ.Consume(
 		q.Name, // antrian
 		"",     // konsumen
 		false,  // auto-ack (false untuk manual ack)
@@ -78,19 +148,13 @@ func main() {
 		nil,    // args
 	)
 	if err != nil {
-		log.Printf("Gagal mendaftarkan konsumen: %v", err)
+		log.Fatalf("Gagal mendaftarkan konsumen: %v", err)
 	}
 
-	log.Println("Menunggu pesan...")
-	forever := make(chan bool)
+	// Mengirim pesan ke channel
+	for d := range msgs {
+		msgChannel <- d
+	}
 
-	go func() {
-		for d := range msgs {
-			log.Printf("Menerima pesan: %s", d.Body)
-			d.Ack(false)
-		}
-	}()
-
-	log.Println("Tekan CTRL+C untuk keluar")
-	<-forever
+	close(msgChannel)
 }

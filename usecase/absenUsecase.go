@@ -1,13 +1,22 @@
 package usecase
 
 import (
+	rabbit "absensi/config"
 	cont "absensi/controllers"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/url"
 	"time"
+
+	"github.com/streadway/amqp"
 )
 
 var controller *cont.Conn
+
+type AbsenUsecase struct {
+	RabMQ *amqp.Channel
+}
 
 func init() {
 	var err error
@@ -15,6 +24,17 @@ func init() {
 	if err != nil {
 		panic(err) // Handle error appropriately
 	}
+}
+
+// Fungsi untuk inisialisasi handler dengan instance database
+func NewConUsecase() (*AbsenUsecase, error) {
+	rabMQD, err := rabbit.InitRabbitMQ()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize rabbit: %w", err)
+	}
+	return &AbsenUsecase{
+		RabMQ: rabMQD,
+	}, nil
 }
 
 // use case absen top
@@ -47,8 +67,8 @@ func GetAbsenTopUsecase(tanggalhariIni string) ([]map[string]interface{}, error)
 	return absentopResp, nil
 }
 
-// // use case simpan tap scan absen
-func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHariini string) (res map[string]interface{}, codeHttp int, err error) {
+// use case simpan tap scan absen
+func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHariini string) (res map[string]interface{}, codeHttp int, err error) {
 
 	fmt.Println("Form code - post absen:", formCode)
 
@@ -91,10 +111,12 @@ func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHari
 			}
 			if jamFixCon > 0 {
 				if !keluar.Valid {
-					err := controller.UpdateAbsenController(timeonlyHariini, tanggalhariIni, id_siswa, id_kelas)
+
+					err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, "absenready", "siswa", id_siswa, id_kelas, "satu")
 					if err != nil {
 						return nil, 500, err
 					}
+
 					// Create response structure
 					responseItem := map[string]interface{}{
 						"FormCode":  resSiswa.NIS.String,
@@ -126,6 +148,11 @@ func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHari
 				fmt.Println("Error parsing time:", err)
 				return nil, 500, err
 			}
+			// morningStart, _ := time.Parse("15:04:05", "05:00:00")
+			// noonEnd, _ := time.Parse("15:04:05", "12:00:00")
+
+			// afternunStart, _ := time.Parse("15:04:05", "12:00:00")
+			// niteEnd, _ := time.Parse("15:04:05", "21:00:00")
 			morningStart, _ := time.Parse("15:04:05", "05:00:00")
 			noonEnd, _ := time.Parse("15:04:05", "12:00:00")
 
@@ -139,17 +166,21 @@ func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHari
 
 			var tipeAbsen string
 			if isMorning {
+
 				tipeAbsen = "masuk"
-				err := controller.PostAbsenController(timeonlyHariini, tanggalhariIni, tipeAbsen, id_siswa, id_kelas)
+				err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, tipeAbsen, "siswa", id_siswa, id_kelas, "dua")
 				if err != nil {
 					return nil, 500, err
 				}
+
 			} else if isNite { //diatas jam 12 siang kemungkinan absensi pulang
+
 				tipeAbsen = "keluar"
-				err := controller.PostAbsenController(timeonlyHariini, tanggalhariIni, tipeAbsen, id_siswa, id_kelas)
+				err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, tipeAbsen, "siswa", id_siswa, id_kelas, "tiga")
 				if err != nil {
 					return nil, 500, err
 				}
+
 			} else {
 				responseItem := map[string]interface{}{
 					"Message": "Terjadi kesalahan hubungi admin #kn3k2",
@@ -170,6 +201,7 @@ func PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHari
 			return responseItem, 200, nil
 
 		}
+
 	}
 
 	if countGuru > 0 {
@@ -200,4 +232,53 @@ func calculateHoursDifference(datetime, j_masuk string) (jMasukDiff int, err err
 	jam := int(diff / 3600)
 
 	return jam, nil
+}
+
+func (r *AbsenUsecase) DeclarePublishAbsen(timeKeluarORmasuk, tanggalHariIni, tipeAbsen, tipeOrang string, idSiswa, idKelas int64, jenisQue string) (err error) {
+
+	q, err := r.RabMQ.QueueDeclare(
+		"absensi", // queue name
+		true,      // durable
+		false,     // delete when unused
+		false,     // exclusive
+		false,     // no-wait
+		nil,       // arguments
+	)
+	if err != nil {
+		log.Fatalf("Failed to declare a queue: %v", err)
+		return err
+	}
+
+	//struktur data
+	data := map[string]interface{}{
+		"timeOnly":       timeKeluarORmasuk,
+		"TanggalHariIni": tanggalHariIni,
+		"IdSiswa":        idSiswa,
+		"IdKelas":        idKelas,
+		"TipeAbsen":      tipeAbsen,
+		"TipeOrang":      tipeOrang,
+		"JenisProses":    jenisQue,
+	}
+
+	// Meng-marshal data menjadi JSON
+	body, err := json.Marshal(data)
+	if err != nil {
+		log.Fatalf("Failed to marshal JSON: %v", err)
+		return err
+	}
+
+	err = r.RabMQ.Publish(
+		"",     // exchange
+		q.Name, // routing key
+		false,  // mandatory
+		false,  // immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        body,
+		})
+	if err != nil {
+		log.Fatalf("Failed to publish a message: %v", err)
+		return err
+	}
+	return nil
 }

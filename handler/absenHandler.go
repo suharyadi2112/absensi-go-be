@@ -1,8 +1,10 @@
 package handler
 
 import (
-	"absensi/usecase"
+	usec "absensi/usecase"
 	"encoding/base64"
+
+	// usec "absensi/usecase"
 	"log"
 	"net/http"
 	"time"
@@ -12,17 +14,26 @@ import (
 	"github.com/skip2/go-qrcode"
 )
 
+var (
+	currentTime     time.Time
+	tanggalHariIni  string
+	datetimeHariini string
+	timeonlyHariini string
+	usecase         *usec.AbsenUsecase
+)
+
 // Struct untuk menangkap data JSON
 type AbsenForm struct {
 	FormCode string `json:"form_code" validate:"required"`
 }
 
-var currentTime time.Time
-var tanggalHariIni string
-var datetimeHariini string
-var timeonlyHariini string
-
 func init() {
+	var err error
+	usecase, err = usec.NewConUsecase()
+	if err != nil {
+		panic(err.Error())
+	}
+
 	currentTime = time.Now()
 	tanggalHariIni = currentTime.Format("2006-01-02")
 	datetimeHariini = currentTime.Format("2006-01-02 15:04:05")
@@ -32,7 +43,7 @@ func init() {
 // get absen top
 func GetAbsenTopHandler(c echo.Context) error {
 
-	absenTopData, err := usecase.GetAbsenTopUsecase(tanggalHariIni)
+	absenTopData, err := usec.GetAbsenTopUsecase(tanggalHariIni)
 
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -49,7 +60,7 @@ func GetAbsenTopHandler(c echo.Context) error {
 }
 
 // post absen
-func PostAbsen(c echo.Context) error {
+func PostAbsenHandler(c echo.Context) error {
 
 	u := &AbsenForm{}
 	if err := c.Bind(u); err != nil {
@@ -66,7 +77,6 @@ func PostAbsen(c echo.Context) error {
 		})
 	}
 	formCode := u.FormCode
-
 	dataAbsenPost, status, err := usecase.PostAbsenTopUsecase(formCode, tanggalHariIni, datetimeHariini, timeonlyHariini)
 
 	if err != nil {

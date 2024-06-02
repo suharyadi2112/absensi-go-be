@@ -20,7 +20,7 @@ func InitRoutes(e *echo.Echo) {
 	e.Use(middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)))
 
 	e.GET("/get_absen_top", handler.GetAbsenTopHandler)
-	e.POST("/post_absen", handler.PostAbsen)
+	e.POST("/post_absen", handler.PostAbsenHandler)
 
 	e.GET("/qrcode", handler.QrCode)
 

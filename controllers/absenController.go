@@ -34,8 +34,12 @@ type AbsensiDetailJamMasuk struct {
 
 func (h *Conn) GetAbsenTopController(dateS string) (DataAbsen []*models.Absensi, err error) {
 
+	conn, err := NewCon()
+	if err != nil {
+		log.Fatal(err)
+	}
 	// Eksekusi kueri SQL
-	rows, err := h.DB.Query(`
+	rows, err := conn.DB.Query(`
 		SELECT
 			absensi.*,
 			siswa.nama_lengkap,
@@ -101,7 +105,7 @@ func (h *Conn) UpdateAbsenController(Keluar, tanggalHariIni string, idSiswa, idK
 	return nil
 }
 
-func (h *Conn) PostAbsenController(Masuk, tanggalHariIni, tipeAbsen string, idSiswa, idKelas int64) (err error) {
+func (h *Conn) PostAbsenController(timeOnly, tanggalHariIni, tipeAbsen string, idSiswa, idKelas int64) (err error) {
 
 	var query string
 
@@ -109,7 +113,7 @@ func (h *Conn) PostAbsenController(Masuk, tanggalHariIni, tipeAbsen string, idSi
 	if tipeAbsen == "masuk" {
 		query = "INSERT INTO absensi (id_siswa, id_kelas, absensi, tgl, masuk, notif_in) VALUES (?, ?, ?, ?, ?, ?)"
 	} else if tipeAbsen == "keluar" {
-		query = "INSERT INTO absensi (id_siswa, id_kelas, absensi, tgl, keluar, notif_in) VALUES (?, ?, ?, ?, ?, ?)"
+		query = "INSERT INTO absensi (id_siswa, id_kelas, absensi, tgl, keluar, notif_out) VALUES (?, ?, ?, ?, ?, ?)"
 	} else {
 		return errors.New("invalid tipeAbsen")
 	}
@@ -121,7 +125,7 @@ func (h *Conn) PostAbsenController(Masuk, tanggalHariIni, tipeAbsen string, idSi
 	defer stmt.Close()
 
 	// Execute the SQL statement
-	_, err = stmt.Exec(idSiswa, idKelas, "H", tanggalHariIni, Masuk, "0")
+	_, err = stmt.Exec(idSiswa, idKelas, "H", tanggalHariIni, timeOnly, "0")
 	if err != nil {
 		log.Fatal("Error executing SQL statement:", err)
 		return err
@@ -186,7 +190,10 @@ func (h *Conn) CountSiswaController(formCode string) (DataCountSiswa int, err er
 
 	var qSiswa int
 	err = h.DB.QueryRow(`SELECT COUNT(*) FROM siswa WHERE nis = ?`, sanitizedCode).Scan(&qSiswa)
-	if err != nil {
+	if err == sql.ErrNoRows {
+		// Data absen tidak ditemukan
+		return 0, nil // Bukan error 500
+	} else if err != nil {
 		return 0, err
 	}
 
@@ -200,8 +207,11 @@ func (h *Conn) CountGuruController(formCode string) (DataCountGuru int, err erro
 
 	var qGuru int
 	err = h.DB.QueryRow("SELECT COUNT(*) FROM pengajar WHERE nip = ?", sanitizedCode).Scan(&qGuru)
-	if err != nil {
-		return 0, nil
+	if err == sql.ErrNoRows {
+		// Data absen tidak ditemukan
+		return 0, nil // Bukan error 500
+	} else if err != nil {
+		return 0, err
 	}
 
 	return qGuru, nil
