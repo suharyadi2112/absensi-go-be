@@ -105,7 +105,7 @@ func (h *Conn) UpdateAbsenController(Keluar, tanggalHariIni string, idSiswa, idK
 	return nil
 }
 
-func (h *Conn) PostAbsenController(timeOnly, tanggalHariIni, tipeAbsen string, idSiswa, idKelas int64) (err error) {
+func (h *Conn) PostAbsenSiswaController(timeOnly, tanggalHariIni, tipeAbsen string, idSiswa, idKelas int64) (err error) {
 
 	var query string
 
@@ -134,7 +134,28 @@ func (h *Conn) PostAbsenController(timeOnly, tanggalHariIni, tipeAbsen string, i
 	return nil
 }
 
-func (h *Conn) GetOneAbsensiController(idSiswa, idKelas int64, date string) (dataOneAbsen *AbsensiDetailJamMasuk, err error) {
+func (h *Conn) PostAbsenGuruController(timeOnly, tanggalHariIni string, idPengajar int64) (err error) {
+
+	query := "INSERT INTO absensi (id_pengajar, absensi, tgl, masuk, status_in) VALUES (?, ?, ?, ?, ?)"
+
+	stmt, err := h.DB.Prepare(query)
+	if err != nil {
+		log.Fatal("Error preparing SQL statement:", err)
+		return err
+	}
+	defer stmt.Close()
+
+	// Execute the SQL statement
+	_, err = stmt.Exec(idPengajar, "H", tanggalHariIni, timeOnly, "0")
+	if err != nil {
+		log.Fatal("Error executing SQL statement:", err)
+		return err
+	}
+
+	return nil
+}
+
+func (h *Conn) GetOneAbsensiSiswaController(idSiswa, idKelas int64, date string) (dataOneAbsen *AbsensiDetailJamMasuk, err error) {
 
 	query := `SELECT absensi.id, absensi.keluar, CONCAT(tgl, ' ', masuk) as j_masuk FROM absensi WHERE id_siswa = ? AND tgl = ? AND id_kelas = ?`
 
@@ -183,6 +204,37 @@ func (h *Conn) GetSiswaController(nis string) (DataSiswa *models.Siswa, err erro
 	return &s, nil
 }
 
+func (h *Conn) GetGuruController(nip string) (DataGuru *models.Pengajar, err error) {
+
+	query := `SELECT id_pengajar, nip, nama_lengkap, username_login, password_login, pswd, alamat, tempat_lahir, tgl_lahir, jenis_kelamin, agama, no_telp, email, foto, blokir FROM pengajar WHERE nip = ?`
+
+	row := h.DB.QueryRow(query, nip)
+
+	var pengajar models.Pengajar
+	err = row.Scan(
+		&pengajar.ID,
+		&pengajar.NIP,
+		&pengajar.NamaLengkap,
+		&pengajar.UsernameLogin,
+		&pengajar.PasswordLogin,
+		&pengajar.Pswd,
+		&pengajar.Alamat,
+		&pengajar.TempatLahir,
+		&pengajar.TanggalLahir,
+		&pengajar.JenisKelamin,
+		&pengajar.Agama,
+		&pengajar.NoTelp,
+		&pengajar.Email,
+		&pengajar.Foto,
+		&pengajar.Blokir,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pengajar, nil
+}
+
 func (h *Conn) CountSiswaController(formCode string) (DataCountSiswa int, err error) {
 
 	sanitizedCode := strings.ReplaceAll(formCode, ".", "")
@@ -216,4 +268,30 @@ func (h *Conn) CountGuruController(formCode string) (DataCountGuru int, err erro
 
 	return qGuru, nil
 
+}
+
+func (h *Conn) GetOneAbsensiGuruController(idPengajar int64, date string) (dataOneAbsen *AbsensiDetailJamMasuk, err error) {
+
+	query := `SELECT absensi.id, absensi.keluar, CONCAT(tgl, ' ', masuk) as j_masuk FROM absensi WHERE id_pengajar = ? AND tgl = ?`
+
+	row := h.DB.QueryRow(query, idPengajar, date)
+
+	var absensi models.Absensi
+	var jMasuk sql.NullString
+
+	err = row.Scan(&absensi.ID, &absensi.Keluar, &jMasuk)
+
+	if err == sql.ErrNoRows {
+		// Data absen tidak ditemukan
+		return nil, nil // Bukan error 500
+	} else if err != nil {
+		return nil, err
+	}
+
+	absensiDetail := &AbsensiDetailJamMasuk{
+		Absensi: &absensi,
+		JMasuk:  jMasuk, // Convert 'jMasuk' to string
+	}
+
+	return absensiDetail, nil
 }

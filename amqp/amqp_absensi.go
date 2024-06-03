@@ -22,7 +22,7 @@ type ConnAmqpAbsen struct {
 }
 type PayloadRabbit struct {
 	IdKelas        int64  `json:"IdKelas"`
-	IdSiswa        int64  `json:"IdSiswa"`
+	IdSiswaOrGuru  int64  `json:"IdSiswaOrGuru"`
 	JenisProses    string `json:"JenisProses"`
 	TanggalHariIni string `json:"TanggalHariIni"`
 	TipeAbsen      string `json:"TipeAbsen"`
@@ -90,14 +90,14 @@ func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
 
 		jenisProses := payload.JenisProses
 		IdKelas := payload.IdKelas
-		IdSiswa := payload.IdSiswa
+		IdSiswaOrGuru := payload.IdSiswaOrGuru
 		TanggalHariIni := payload.TanggalHariIni
 		TipeAbsen := payload.TipeAbsen
 		TimeOnly := payload.TimeOnly
 
 		if jenisProses == "satu" {
 
-			err := controller.UpdateAbsenController(TimeOnly, TanggalHariIni, IdSiswa, IdKelas) //tanpa tipeabsen
+			err := controller.UpdateAbsenController(TimeOnly, TanggalHariIni, IdSiswaOrGuru, IdKelas) //tanpa tipeabsen
 			if err != nil {
 				logrus.Errorf("Error update absen controller amqp satu: %s", err.Error())
 				continue
@@ -106,14 +106,25 @@ func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
 		} else if jenisProses == "dua" || jenisProses == "tiga" {
 
 			// untuk absen masuk
-			err := controller.PostAbsenController(TimeOnly, TanggalHariIni, TipeAbsen, IdSiswa, IdKelas)
+			err := controller.PostAbsenSiswaController(TimeOnly, TanggalHariIni, TipeAbsen, IdSiswaOrGuru, IdKelas)
+			if err != nil {
+				logrus.Errorf("Error post absen controller amqp dua | tiga: %s", err.Error())
+				continue
+			}
+
+		} else if jenisProses == "empat" { //zona guru
+
+		} else if jenisProses == "lima" {
+
+			// untuk absen masuk
+			err := controller.PostAbsenGuruController(TimeOnly, TanggalHariIni, IdSiswaOrGuru)
 			if err != nil {
 				logrus.Errorf("Error post absen controller amqp dua | tiga: %s", err.Error())
 				continue
 			}
 
 		} else {
-			logrus.Info("tanpa tipe absen")
+			logrus.Info("tanpa jenis proses")
 		}
 
 		logrus.Info("succes")

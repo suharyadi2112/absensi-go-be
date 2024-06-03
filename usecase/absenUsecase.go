@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
@@ -90,7 +91,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 		id_siswa := resSiswa.ID.Int64
 		id_kelas := resSiswa.IDKelas.ID.Int64
-		cAbsen, err := controller.GetOneAbsensiController(id_siswa, id_kelas, tanggalhariIni)
+		cAbsen, err := controller.GetOneAbsensiSiswaController(id_siswa, id_kelas, tanggalhariIni)
 
 		if err != nil {
 			return nil, 500, err
@@ -148,16 +149,17 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 				fmt.Println("Error parsing time:", err)
 				return nil, 500, err
 			}
-			// morningStart, _ := time.Parse("15:04:05", "05:00:00")
-			// noonEnd, _ := time.Parse("15:04:05", "12:00:00")
-
-			// afternunStart, _ := time.Parse("15:04:05", "12:00:00")
-			// niteEnd, _ := time.Parse("15:04:05", "21:00:00")
 			morningStart, _ := time.Parse("15:04:05", "05:00:00")
 			noonEnd, _ := time.Parse("15:04:05", "12:00:00")
 
 			afternunStart, _ := time.Parse("15:04:05", "12:00:00")
 			niteEnd, _ := time.Parse("15:04:05", "21:00:00")
+
+			//JAM TESTING
+			// morningStart, _ := time.Parse("15:04:05", "21:00:00")
+			// noonEnd, _ := time.Parse("15:04:05", "23:00:00")
+			// afternunStart, _ := time.Parse("15:04:05", "12:00:00")
+			// niteEnd, _ := time.Parse("15:04:05", "21:00:00")
 
 			isMorning := parsedTime.After(morningStart) && parsedTime.Before(noonEnd)
 			isNite := parsedTime.After(afternunStart) && parsedTime.Before(niteEnd)
@@ -202,10 +204,46 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 		}
 
-	}
+	} else if countGuru > 0 {
 
-	if countGuru > 0 {
-		fmt.Println("ada guru")
+		resGuru, err := controller.GetGuruController(formCode)
+		if err != nil {
+			return nil, 500, err
+		}
+
+		id_pengajar := resGuru.ID.Int64
+		nip := resGuru.NIP.String
+		nama_guru := resGuru.NamaLengkap.String
+		alamat_guru := resGuru.Alamat.String
+		foto_guru := resGuru.Foto.String
+
+		logrus.Info(id_pengajar, nip, nama_guru, alamat_guru, foto_guru) //pakai & untuk cepat lok pointer
+
+		cAbsenGuru, err := controller.GetOneAbsensiGuruController(id_pengajar, tanggalhariIni)
+		if err != nil {
+			return nil, 500, err
+		}
+
+		if cAbsenGuru != nil {
+			logrus.Info(cAbsenGuru, "isi")
+		} else {
+
+			logrus.Info(cAbsenGuru)
+			err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, "", "guru", id_pengajar, 0, "lima")
+			if err != nil {
+				return nil, 500, err
+			}
+
+		}
+
+	} else {
+
+		responseItem := map[string]interface{}{
+			"Message": "Kartu anda tidak terdaftar",
+		}
+		logrus.Info(formCode, "inputan no kartu")
+		return responseItem, 400, nil
+
 	}
 
 	return nil, 200, nil
@@ -234,7 +272,7 @@ func calculateHoursDifference(datetime, j_masuk string) (jMasukDiff int, err err
 	return jam, nil
 }
 
-func (r *AbsenUsecase) DeclarePublishAbsen(timeKeluarORmasuk, tanggalHariIni, tipeAbsen, tipeOrang string, idSiswa, idKelas int64, jenisQue string) (err error) {
+func (r *AbsenUsecase) DeclarePublishAbsen(timeKeluarORmasuk, tanggalHariIni, tipeAbsen, tipeOrang string, idSiswaOrGuru, idKelas int64, jenisQue string) (err error) {
 
 	q, err := r.RabMQ.QueueDeclare(
 		"absensi", // queue name
@@ -253,7 +291,7 @@ func (r *AbsenUsecase) DeclarePublishAbsen(timeKeluarORmasuk, tanggalHariIni, ti
 	data := map[string]interface{}{
 		"timeOnly":       timeKeluarORmasuk,
 		"TanggalHariIni": tanggalHariIni,
-		"IdSiswa":        idSiswa,
+		"IdSiswaOrGuru":  idSiswaOrGuru,
 		"IdKelas":        idKelas,
 		"TipeAbsen":      tipeAbsen,
 		"TipeOrang":      tipeOrang,
