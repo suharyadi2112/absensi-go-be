@@ -204,7 +204,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 		}
 
-	} else if countGuru > 0 {
+	} else if countGuru > 0 { //section guru
 
 		resGuru, err := controller.GetGuruController(formCode)
 		if err != nil {
@@ -226,6 +226,56 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 		if cAbsenGuru != nil {
 			logrus.Info(cAbsenGuru, "isi")
+			var jamFixConGur int
+			jam_masuk := cAbsenGuru.JMasuk
+			keluarGur := cAbsenGuru.Absensi.Keluar
+			if jam_masuk.Valid { //tidak boleh null
+				jamFixGur, err := calculateHoursDifference(dateTimehariini, jam_masuk.String) //cek veda jam
+				if err != nil {
+					return nil, 500, err
+				}
+				jamFixConGur = jamFixGur //assign jam fix
+				fmt.Println(jamFixConGur, "masok guru")
+			}
+
+			if jamFixConGur > 0 {
+
+				if !keluarGur.Valid {
+					err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, "", "guru", id_pengajar, 0, "empat")
+					if err != nil {
+						return nil, 500, err
+					}
+
+					// Create response structure
+					responseItem := map[string]interface{}{
+						"FormCode":  nip,
+						"Nama":      nama_guru,
+						"Kelas":     "-",
+						"Alamat":    alamat_guru,
+						"Foto":      url.PathEscape(foto_guru),
+						"AbsenAt":   dateTimehariini,
+						"Tipe":      "guru",
+						"TipeAbsen": "-",
+					}
+					return responseItem, 200, nil
+
+				} else {
+
+					logrus.Info("sudah absen guru 223")
+					responseItem := map[string]interface{}{
+						"Message": "Anda sudah melakukan absensi",
+					}
+					return responseItem, 400, nil
+				}
+
+			} else {
+				logrus.Info("sudah absen guru 123")
+				responseItem := map[string]interface{}{
+					"Message": "Terjadi kesalahan hubungi admin #sks88",
+				}
+				return responseItem, 400, nil
+			}
+
 		} else {
 
 			logrus.Info(cAbsenGuru)
@@ -233,7 +283,18 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 			if err != nil {
 				return nil, 500, err
 			}
-
+			// Create response structure
+			responseItem := map[string]interface{}{
+				"FormCode":  nip,
+				"Nama":      nama_guru,
+				"Kelas":     "-",
+				"Alamat":    alamat_guru,
+				"Foto":      url.PathEscape(foto_guru),
+				"AbsenAt":   dateTimehariini,
+				"Tipe":      "guru",
+				"TipeAbsen": "-",
+			}
+			return responseItem, 200, nil
 		}
 
 	} else {

@@ -295,3 +295,24 @@ func (h *Conn) GetOneAbsensiGuruController(idPengajar int64, date string) (dataO
 
 	return absensiDetail, nil
 }
+
+// Update absensi guru
+func (h *Conn) UpdateAbsenGuruController(Keluar, tanggalHariIni string, idPengajar int64) (err error) {
+
+	// Prepare the UPDATE query
+	stmt, err := h.DB.Prepare("UPDATE absensi SET keluar = ?, notif_out = 0 WHERE id_pengajar = ? AND tgl = ?")
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+	defer stmt.Close()
+	// Execute the UPDATE query
+	_, err = stmt.Exec(Keluar, idPengajar, tanggalHariIni)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+	fmt.Println("success update absen", idPengajar)
+
+	return nil
+}

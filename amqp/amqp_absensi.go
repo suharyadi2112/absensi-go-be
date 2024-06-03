@@ -114,6 +114,13 @@ func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
 
 		} else if jenisProses == "empat" { //zona guru
 
+			// untuk absen masuk
+			err := controller.UpdateAbsenGuruController(TimeOnly, TanggalHariIni, IdSiswaOrGuru)
+			if err != nil {
+				logrus.Errorf("Error post absen controller amqp dua | tiga: %s", err.Error())
+				continue
+			}
+
 		} else if jenisProses == "lima" {
 
 			// untuk absen masuk
