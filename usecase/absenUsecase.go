@@ -185,7 +185,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 			} else {
 				responseItem := map[string]interface{}{
-					"Message": "Terjadi kesalahan hubungi admin #kn3k2",
+					"Message": "Anda sudah melakukan absensi",
 				}
 				return responseItem, 400, nil
 			}
@@ -271,7 +271,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 			} else {
 				logrus.Info("sudah absen guru 123")
 				responseItem := map[string]interface{}{
-					"Message": "Terjadi kesalahan hubungi admin #sks88",
+					"Message": "Anda sudah melakukan absensi",
 				}
 				return responseItem, 400, nil
 			}
