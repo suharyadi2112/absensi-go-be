@@ -8,6 +8,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
+	"github.com/pusher/pusher-http-go/v5"
 	"github.com/streadway/amqp"
 )
 
@@ -23,6 +24,11 @@ var (
 	rabbitPort     string
 	rabbitUser     string
 	rabbitPassword string
+
+	pusherAppId   string
+	pusherKey     string
+	pusherSecret  string
+	pusherCluster string
 )
 
 func init() {
@@ -44,6 +50,11 @@ func init() {
 	rabbitPort = os.Getenv("RABBIT_PORT")
 	rabbitUser = os.Getenv("RABBIT_USER")
 	rabbitPassword = os.Getenv("RABBIT_PASSWORD")
+
+	pusherAppId = os.Getenv("APP_ID")
+	pusherKey = os.Getenv("APP_KEY")
+	pusherSecret = os.Getenv("APP_SECRET")
+	pusherCluster = os.Getenv("APP_CLUSTER")
 }
 
 // MYSQL
@@ -77,4 +88,19 @@ func InitRabbitMQ() (*amqp.Channel, error) {
 	}
 
 	return ch, nil
+}
+
+func InitPusher() pusher.Client {
+
+	// Inisialisasi client Pusher
+	pusherClient := pusher.Client{
+		AppID:   pusherAppId,
+		Key:     pusherKey,
+		Secret:  pusherSecret,
+		Cluster: pusherCluster,
+		Secure:  true,
+	}
+
+	return pusherClient
+
 }
