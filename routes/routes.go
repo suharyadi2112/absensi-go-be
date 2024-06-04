@@ -11,7 +11,7 @@ import (
 func InitRoutes(e *echo.Echo) {
 
 	config := middleware.CORSConfig{
-		AllowOrigins: []string{"http://localhost:5173"},
+		AllowOrigins: []string{"http://localhost:5173", "http://192.168.0.244:5173"},
 		AllowMethods: []string{echo.GET, echo.PUT, echo.POST},
 	}
 
