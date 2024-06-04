@@ -76,7 +76,7 @@ func GetAbsenTopUsecase(tanggalhariIni string) ([]map[string]interface{}, error)
 			"IDAbsensi":  s.ID.Int64,
 			"FotoSiswa":  s.IDSiswa.Foto.String,
 			"FotoGuru":   s.IDPengajar.Foto.String,
-			"NamaSiswa":  s.IDSiswa.NamaLengkap.String,
+			"Nama":       s.IDSiswa.NamaLengkap.String,
 			"NamaGuru":   s.IDPengajar.NamaLengkap.String,
 			"Kelas":      s.IDKelas.Kelas.String,
 			"IDPengajar": s.IDPengajar.ID.Int64,
@@ -139,13 +139,13 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 					// Create response structure
 					responseItem := map[string]interface{}{
-						"FormCode":  resSiswa.NIS.String,
-						"NamaSiswa": resSiswa.NamaLengkap.String,
-						"Kelas":     resSiswa.IDKelas.Kelas.String,
-						"Alamat":    resSiswa.Alamat.String,
-						"Foto":      url.PathEscape(resSiswa.Foto.String),
-						"AbsenAt":   dateTimehariini,
-						"Tipe":      "siswa",
+						"FormCode": resSiswa.NIS.String,
+						"Nama":     resSiswa.NamaLengkap.String,
+						"Kelas":    resSiswa.IDKelas.Kelas.String,
+						"Alamat":   resSiswa.Alamat.String,
+						"Foto":     url.PathEscape(resSiswa.Foto.String),
+						"AbsenAt":  dateTimehariini,
+						"Tipe":     "siswa",
 					}
 					return responseItem, 200, nil
 				} else {
@@ -214,7 +214,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 			// Create response structure
 			responseItem := map[string]interface{}{
 				"FormCode":  resSiswa.NIS.String,
-				"NamaSiswa": resSiswa.NamaLengkap.String,
+				"Nama":      resSiswa.NamaLengkap.String,
 				"Kelas":     resSiswa.IDKelas.Kelas.String,
 				"Alamat":    resSiswa.Alamat.String,
 				"Foto":      url.PathEscape(resSiswa.Foto.String),
