@@ -1,40 +1,58 @@
 package usecase
 
 import (
-	rabbit "absensi/config"
+	conFig "absensi/config"
 	cont "absensi/controllers"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/url"
+	"os"
 	"time"
 
+	"github.com/joho/godotenv"
+	"github.com/pusher/pusher-http-go/v5"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
 var controller *cont.Conn
+var pusherChanel string
+var pusherEvent string
 
 type AbsenUsecase struct {
-	RabMQ *amqp.Channel
+	RabMQ  *amqp.Channel
+	Pusher pusher.Client
 }
 
 func init() {
 	var err error
+
 	controller, err = cont.NewCon()
 	if err != nil {
-		panic(err) // Handle error appropriately
+		log.Fatal("Error NewCon", err.Error())
 	}
+	err = godotenv.Load("../.env")
+	if err != nil {
+		log.Fatal("Error loading .env file on absensi usecase", err.Error())
+	}
+
+	pusherChanel = os.Getenv("APP_CHANNEL")
+	pusherEvent = os.Getenv("APP_EVENT")
+
 }
 
 // Fungsi untuk inisialisasi handler dengan instance database
 func NewConUsecase() (*AbsenUsecase, error) {
-	rabMQD, err := rabbit.InitRabbitMQ()
+	rabMQD, err := conFig.InitRabbitMQ()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize rabbit: %w", err)
 	}
+	pusHER := conFig.InitPusher()
+
 	return &AbsenUsecase{
-		RabMQ: rabMQD,
+		RabMQ:  rabMQD,
+		Pusher: pusHER,
 	}, nil
 }
 
@@ -117,6 +135,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 					if err != nil {
 						return nil, 500, err
 					}
+					r.PushPusher(formCode) //sendPusher
 
 					// Create response structure
 					responseItem := map[string]interface{}{
@@ -189,6 +208,9 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 				}
 				return responseItem, 400, nil
 			}
+
+			r.PushPusher(formCode) //sendPusher
+
 			// Create response structure
 			responseItem := map[string]interface{}{
 				"FormCode":  resSiswa.NIS.String,
@@ -245,6 +267,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 					if err != nil {
 						return nil, 500, err
 					}
+					r.PushPusher(formCode) //sendPusher
 
 					// Create response structure
 					responseItem := map[string]interface{}{
@@ -283,6 +306,8 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 			if err != nil {
 				return nil, 500, err
 			}
+			r.PushPusher(formCode) //sendPusher
+
 			// Create response structure
 			responseItem := map[string]interface{}{
 				"FormCode":  nip,
@@ -307,7 +332,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 	}
 
-	return nil, 200, nil
+	// return nil, 200, nil
 }
 
 func calculateHoursDifference(datetime, j_masuk string) (jMasukDiff int, err error) {
@@ -331,6 +356,13 @@ func calculateHoursDifference(datetime, j_masuk string) (jMasukDiff int, err err
 	jam := int(diff / 3600)
 
 	return jam, nil
+}
+
+func (r *AbsenUsecase) PushPusher(formCode string) {
+
+	r.Pusher.Trigger(pusherChanel, pusherEvent, map[string]string{"formCode": formCode})
+	fmt.Println("Pesan berhasil dikirim ke Pusher - ", formCode)
+
 }
 
 func (r *AbsenUsecase) DeclarePublishAbsen(timeKeluarORmasuk, tanggalHariIni, tipeAbsen, tipeOrang string, idSiswaOrGuru, idKelas int64, jenisQue string) (err error) {
