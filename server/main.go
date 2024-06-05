@@ -11,7 +11,7 @@ func main() {
 
 	routes.InitRoutes(e)
 
-	// e.Logger.Fatal(e.Start("localhost:1323"))
-	e.Logger.Fatal(e.Start("192.168.0.244:1323"))
+	e.Logger.Fatal(e.Start("localhost:1323"))
+	// e.Logger.Fatal(e.Start("192.168.0.244:1323"))
 
 }

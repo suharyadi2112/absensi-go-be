@@ -152,12 +152,14 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 					responseItem := map[string]interface{}{
 						"Message": "Anda sudah melakukan absensi",
 					}
+					logrus.Info("sudah melakukan absen #2ess3")
 					return responseItem, 400, nil
 				}
 			} else { //kemungkinan terjadi saat data absen ada tapi jam masuk maupun pulang kosong/null
 				responseItem := map[string]interface{}{
-					"Message": "Terjadi kesalahan hubungi admin #sks88",
+					"Message": "Anda sudah melakukan absensi",
 				}
+				logrus.Info("sudah melakukan absen #k3k3")
 				return responseItem, 400, nil
 			}
 
@@ -183,7 +185,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 			isMorning := parsedTime.After(morningStart) && parsedTime.Before(noonEnd)
 			isNite := parsedTime.After(afternunStart) && parsedTime.Before(niteEnd)
 
-			fmt.Println(isMorning, isNite)
+			fmt.Println(isMorning, isNite, "cek ketentuan jam")
 
 			var tipeAbsen string
 			if isMorning {
@@ -206,6 +208,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 				responseItem := map[string]interface{}{
 					"Message": "Anda sudah melakukan absensi",
 				}
+				fmt.Println("bukan waktu sekolah")
 				return responseItem, 400, nil
 			}
 
