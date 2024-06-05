@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 	"github.com/pusher/pusher-http-go/v5"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
@@ -57,6 +59,75 @@ func init() {
 	pusherCluster = os.Getenv("APP_CLUSTER")
 }
 
+// LOGRUS
+func InitLogRus() *logrus.Logger {
+
+	logger := logrus.New()
+
+	logger.SetFormatter(&logrus.JSONFormatter{})
+
+	newFileName := time.Now().Format("2006-01-02") + ".log" //rename file
+	logFileName := "log/" + newFileName
+	createLogFile(logFileName)
+
+	// Dapatkan informasi file
+	fileInfo, err := os.Stat(logFileName)
+	if err != nil {
+		fmt.Println("Gagal mendapatkan informasi file log:", err)
+	}
+
+	// Cek ukuran file
+	fileSize := fileInfo.Size()
+
+	if fileSize > 1024*1024 { //pisah 1mb perfile
+		newFileName := time.Now().Format("2006-01-02") + ".log" //rename file
+		createLogFile(newFileName)                              // buat file
+		logFileName = newFileName                               //file baru
+	}
+	file, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_APPEND, 0666) //buka file log
+	if err != nil {
+		fmt.Println("Gagal membuka file log:", err)
+	}
+
+	logger.SetOutput(file)
+	logger.SetLevel(logrus.InfoLevel)
+
+	return logger
+}
+
+// log config
+func createLogFile(fileName string) {
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666) // buat file
+	if err != nil {
+		fmt.Println("Gagal membuat file log:", err)
+	}
+	defer file.Close()
+}
+
+// logconfig
+func InitlogError(logger *logrus.Logger, context, addInfo string, err error, errorType string) {
+
+	logger.SetOutput(os.Stdout) // untuk tetap di cetak di console
+	entry := logger.WithFields(logrus.Fields{
+		"context": context,
+		"info":    addInfo,
+	})
+
+	switch errorType {
+	case "info":
+		entry.Info("Informational message")
+	case "warning":
+		entry.Warn("Warning message")
+	case "error":
+		if err != nil {
+			entry = entry.WithError(err)
+		}
+		entry.Error("An error occurred")
+	default:
+		entry.Warn("Unknown log type")
+	}
+}
+
 // MYSQL
 func InitDBMySql() (*sql.DB, error) {
 
@@ -74,6 +145,7 @@ func InitDBMySql() (*sql.DB, error) {
 	return db, nil
 }
 
+// RABBIT MQ
 func InitRabbitMQ() (*amqp.Channel, error) {
 
 	connStr := fmt.Sprintf("amqp://%s:%s@%s:%s/", rabbitUser, rabbitPassword, rabbitHost, rabbitPort)
@@ -90,6 +162,7 @@ func InitRabbitMQ() (*amqp.Channel, error) {
 	return ch, nil
 }
 
+// PUSHER
 func InitPusher() pusher.Client {
 
 	// Inisialisasi client Pusher
