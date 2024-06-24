@@ -15,6 +15,7 @@ import (
 
 var (
 	controller *cont.Conn
+	logger     *logrus.Logger
 )
 
 type ConnAmqpAbsen struct {
@@ -30,7 +31,8 @@ type PayloadRabbit struct {
 }
 
 func init() {
-	logrus.SetFormatter(&logrus.JSONFormatter{})
+
+	logger = dbRab.InitLogRus()
 
 	var err error
 	controller, err = cont.NewCon()
@@ -41,9 +43,11 @@ func init() {
 
 // Fungsi untuk inisialisasi handler dengan instance database
 func NewCon() (*ConnAmqpAbsen, error) {
+	ctx := "Amqp-NewConAbsensi"
 	rabG, err := dbRab.InitRabbitMQ()
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize rabbit MQ: %w", err)
+		dbRab.InitLog(logger, ctx, "failed to initialize rabbit MQ", err, "error") // catat log
+		return nil, err
 	}
 
 	return &ConnAmqpAbsen{
@@ -53,9 +57,10 @@ func NewCon() (*ConnAmqpAbsen, error) {
 
 func main() {
 
+	ctx := "Amqp-MainAbsensi"
 	myInstance, err := NewCon() //koneksi
 	if err != nil {
-		log.Fatalf("Gagal menginisialisasi koneksi RabbitMQ: %v", err)
+		dbRab.InitLog(logger, ctx, "Gagal menginisialisasi koneksi RabbitMQ", err, "error") // catat log
 	}
 	defer myInstance.RabMQ.Close()
 
@@ -68,23 +73,23 @@ func main() {
 		go worker(msgChannel, &wg)
 	}
 
-	go myInstance.ProcessAmqpAbsen(msgChannel) // proses pesan\
-	logrus.Info("menunggu pesan")
-	wg.Wait() // Menunggu semua worker selesai
+	go myInstance.ProcessAmqpAbsen(msgChannel)                      // proses pesan
+	dbRab.InitLog(logger, ctx, "Menunggu pesan queue", nil, "info") // catat log
+	wg.Wait()                                                       // Menunggu semua worker selesai
 
 }
 
 func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
+	ctx := "Amqp-WorkerAbsensi"
 	defer wg.Done()
-	// Konfigurasi Logrus
-	logrus.SetLevel(logrus.InfoLevel)
 
 	for d := range msgChannel {
 		log.Printf("Menerima pesan: %s", d.Body)
+		dbRab.InitLog(logger, ctx, fmt.Sprintf("Menerima pesan disini `%s`", d.Body), nil, "info") // catat log
 
 		var payload PayloadRabbit
 		if err := json.Unmarshal(d.Body, &payload); err != nil {
-			log.Printf("Error decoding JSON: %s", err.Error())
+			dbRab.InitLog(logger, ctx, "Error decoding JSON", err, "error") // catat log
 			continue
 		}
 
@@ -99,7 +104,7 @@ func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
 
 			err := controller.UpdateAbsenController(TimeOnly, TanggalHariIni, IdSiswaOrGuru, IdKelas) //tanpa tipeabsen
 			if err != nil {
-				logrus.Errorf("Error update absen controller amqp satu: %s", err.Error())
+				dbRab.InitLog(logger, ctx, "Error update absen controller amqp satu", err, "error") // catat log
 				continue
 			}
 
@@ -108,7 +113,7 @@ func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
 			// untuk absen masuk
 			err := controller.PostAbsenSiswaController(TimeOnly, TanggalHariIni, TipeAbsen, IdSiswaOrGuru, IdKelas)
 			if err != nil {
-				logrus.Errorf("Error post absen controller amqp dua | tiga: %s", err.Error())
+				dbRab.InitLog(logger, ctx, "Error post absen controller amqp dua | tiga:", err, "error") // catat log
 				continue
 			}
 
@@ -117,7 +122,7 @@ func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
 			// untuk absen masuk
 			err := controller.UpdateAbsenGuruController(TimeOnly, TanggalHariIni, IdSiswaOrGuru)
 			if err != nil {
-				logrus.Errorf("Error post absen controller amqp dua | tiga: %s", err.Error())
+				dbRab.InitLog(logger, ctx, "Error post absen controller amqp empat", err, "error") // catat log
 				continue
 			}
 
@@ -126,12 +131,12 @@ func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
 			// untuk absen masuk
 			err := controller.PostAbsenGuruController(TimeOnly, TanggalHariIni, IdSiswaOrGuru)
 			if err != nil {
-				logrus.Errorf("Error post absen controller amqp dua | tiga: %s", err.Error())
+				dbRab.InitLog(logger, ctx, "Error post absen controller amqp lime", err, "error") // catat log
 				continue
 			}
 
 		} else {
-			logrus.Info("tanpa jenis proses")
+			dbRab.InitLog(logger, ctx, "tanpa jenis proses", nil, "info") // catat log
 		}
 
 		logrus.Info("succes")
@@ -142,6 +147,7 @@ func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
 }
 
 func (amqp *ConnAmqpAbsen) ProcessAmqpAbsen(msgChannel chan<- amqp.Delivery) {
+	ctx := "Amqp-ProcessAmqpAbsen"
 	// Mendeklarasikan antrian
 	q, err := amqp.RabMQ.QueueDeclare(
 		"absensi", // Nama antrian
@@ -152,7 +158,7 @@ func (amqp *ConnAmqpAbsen) ProcessAmqpAbsen(msgChannel chan<- amqp.Delivery) {
 		nil,       // arguments
 	)
 	if err != nil {
-		log.Fatalf("Gagal mendeklarasikan antrian: %v", err)
+		dbRab.InitLog(logger, ctx, "Gagal mendeklarasikan antrian", err, "error") // catat log
 	}
 
 	// Menunggu dan menerima pesan
@@ -166,7 +172,7 @@ func (amqp *ConnAmqpAbsen) ProcessAmqpAbsen(msgChannel chan<- amqp.Delivery) {
 		nil,    // args
 	)
 	if err != nil {
-		log.Fatalf("Gagal mendaftarkan konsumen: %v", err)
+		dbRab.InitLog(logger, ctx, "Gagal mendaftarkan konsumen", err, "error") // catat log
 	}
 
 	// Mengirim pesan ke channel

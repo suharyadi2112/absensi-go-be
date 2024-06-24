@@ -89,7 +89,7 @@ func InitLogRus() *logrus.Logger {
 	logger.SetFormatter(&logrus.JSONFormatter{})
 
 	newFileName := time.Now().Format("2006-01-02") + ".log" //rename file
-	logFileName := "log/" + newFileName
+	logFileName := "../log/" + newFileName
 	createLogFile(logFileName)
 
 	// Dapatkan informasi file
@@ -122,6 +122,16 @@ func InitLogRus() *logrus.Logger {
 // log config
 func createLogFile(fileName string) {
 	ctx := "DB-createLogFile"
+
+	dir := "../log/" //buat folder
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err := os.MkdirAll(dir, 0755)
+		if err != nil {
+			InitLog(logger, ctx, "Gagal membuat direktori log", err, "error")
+			return
+		}
+	}
+
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666) // buat file
 	if err != nil {
 		InitLog(logger, ctx, "Gagal membuat file log", err, "error") // catat log
@@ -145,11 +155,11 @@ func InitLog(logger *logrus.Logger, context, addInfo string, err error, errorTyp
 		// LogMessageSentry(sentry.LevelInfo, "Informational Message", "Ini adalah pesan info", nil, tags)
 	case "warning":
 		entry.Warn("Warning message")
-		LogMessageSentry(sentry.LevelWarning, "Warning Message", "Ini adalah pesan warning", nil, tags)
+		LogMessageSentry(sentry.LevelWarning, "Warning Message", addInfo, nil, tags)
 	case "error":
 		if err != nil {
 			entry = entry.WithError(err)
-			LogMessageSentry(sentry.LevelError, "Custom Error Title", "Ini adalah pesan error", err, tags)
+			LogMessageSentry(sentry.LevelError, "Custom Error Title", addInfo, err, tags)
 		}
 		entry.Error("An error occurred")
 	default:
