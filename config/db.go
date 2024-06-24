@@ -142,7 +142,7 @@ func InitLog(logger *logrus.Logger, context, addInfo string, err error, errorTyp
 
 	case "info":
 		entry.Info("Informational message")
-		LogMessageSentry(sentry.LevelInfo, "Informational Message", "Ini adalah pesan info", nil, tags)
+		// LogMessageSentry(sentry.LevelInfo, "Informational Message", "Ini adalah pesan info", nil, tags)
 	case "warning":
 		entry.Warn("Warning message")
 		LogMessageSentry(sentry.LevelWarning, "Warning Message", "Ini adalah pesan warning", nil, tags)

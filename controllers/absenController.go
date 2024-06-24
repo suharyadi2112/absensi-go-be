@@ -21,6 +21,10 @@ type AbsensiDetailJamMasuk struct {
 	JMasuk  sql.NullString
 }
 
+func init() {
+	logger = db.InitLogRus()
+}
+
 // Fungsi untuk inisialisasi handler dengan instance database
 func NewCon() (*Conn, error) {
 	ctx := "Controller-NewCon"
