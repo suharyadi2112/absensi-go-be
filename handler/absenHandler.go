@@ -53,7 +53,7 @@ func GetAbsenTopHandler(c echo.Context) error {
 	// err = errors.New("math: square root of negative number")
 
 	if err != nil {
-		conFig.InitlogError(logger, ctx, "error get absen top", err, "error") // catat log
+		conFig.InitLog(logger, ctx, "error get absen top", err, "error") // catat log
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 	//response
@@ -62,7 +62,7 @@ func GetAbsenTopHandler(c echo.Context) error {
 		"BMessage": "Get top absen retrieved",
 		"CData":    absenTopData,
 	}
-	conFig.InitlogError(logger, ctx, "success get absen top", nil, "info") // catat log
+	conFig.InitLog(logger, ctx, "success get absen top", nil, "info") // catat log
 
 	return c.JSON(http.StatusOK, responseUsecase)
 
@@ -73,7 +73,7 @@ func PostAbsenHandler(c echo.Context) error {
 	ctx := "Handler-PostAbsenHandler"
 	u := &AbsenForm{}
 	if err := c.Bind(u); err != nil {
-		conFig.InitlogError(logger, ctx, "error bind payload", err, "error") // catat log
+		conFig.InitLog(logger, ctx, "error bind payload", err, "error") // catat log
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"message": "Invalid request payload",
 		})
@@ -82,7 +82,7 @@ func PostAbsenHandler(c echo.Context) error {
 	validator := validator.New()
 	err := validator.Struct(u)
 	if err != nil {
-		conFig.InitlogError(logger, ctx, "error validator payload", err, "error") // catat log
+		conFig.InitLog(logger, ctx, "error validator payload", err, "error") // catat log
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"message": err.Error(),
 		})
@@ -91,7 +91,7 @@ func PostAbsenHandler(c echo.Context) error {
 	dataAbsenPost, status, err := usecase.PostAbsenTopUsecase(formCode, tanggalHariIni, datetimeHariini, timeonlyHariini)
 
 	if err != nil {
-		conFig.InitlogError(logger, ctx, "error post data to PostAbsenTopUsecase", err, "error") // catat log
+		conFig.InitLog(logger, ctx, "error post data to PostAbsenTopUsecase", err, "error") // catat log
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 
@@ -101,7 +101,7 @@ func PostAbsenHandler(c echo.Context) error {
 			"BMessage": dataAbsenPost,
 			"CData":    nil,
 		}
-		conFig.InitlogError(logger, ctx, "success send response 400", nil, "info") // catat log
+		conFig.InitLog(logger, ctx, "success send response 400", nil, "info") // catat log
 		return c.JSON(http.StatusBadRequest, responseUsecase)
 	}
 
@@ -110,7 +110,7 @@ func PostAbsenHandler(c echo.Context) error {
 		"BMessage": "Succees process absen",
 		"CData":    dataAbsenPost,
 	}
-	conFig.InitlogError(logger, ctx, "success send response 200", nil, "info") // catat log
+	conFig.InitLog(logger, ctx, "success send response 200", nil, "info") // catat log
 
 	return c.JSON(http.StatusOK, responseUsecase)
 
@@ -124,14 +124,14 @@ func QrCode(c echo.Context) error {
 	// Generate QR code as []byte
 	qrCode, err := qrcode.Encode(data, qrcode.Medium, 256)
 	if err != nil {
-		conFig.InitlogError(logger, ctx, "Error generating QR code: ", err, "error") // catat log
+		conFig.InitLog(logger, ctx, "Error generating QR code: ", err, "error") // catat log
 	}
 
 	// Convert []byte to base64 string
 	qrCodeBase64 := base64.StdEncoding.EncodeToString(qrCode)
 
 	// Print or return the base64 string
-	conFig.InitlogError(logger, ctx, "success generate qrcode", nil, "info") // catat log
+	conFig.InitLog(logger, ctx, "success generate qrcode", nil, "info") // catat log
 
 	response := map[string]interface{}{
 		"AStatus":  "success",
@@ -139,7 +139,7 @@ func QrCode(c echo.Context) error {
 		"CData":    qrCodeBase64,
 	}
 
-	conFig.InitlogError(logger, ctx, "success send response 200", nil, "info") // catat log
+	conFig.InitLog(logger, ctx, "success send response 200", nil, "info") // catat log
 
 	return c.JSON(http.StatusOK, response)
 }

@@ -127,7 +127,7 @@ func createLogFile(fileName string) {
 }
 
 // logconfig
-func InitlogError(logger *logrus.Logger, context, addInfo string, err error, errorType string) {
+func InitLog(logger *logrus.Logger, context, addInfo string, err error, errorType string) {
 
 	entry := logger.WithFields(logrus.Fields{
 		"context": context,

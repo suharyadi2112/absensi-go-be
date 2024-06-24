@@ -24,7 +24,7 @@ func main() {
 
 	routes.InitRoutes(e)
 
-	conFig.InitlogError(logger, ctx, "server running at - localhost:1323", nil, "info") // catat log
+	conFig.InitLog(logger, ctx, "server running at - localhost:1323", nil, "info") // catat log
 	e.Logger.Fatal(e.Start("localhost:1323"))
 	// e.Logger.Fatal(e.Start("192.168.0.244:1323"))
 
