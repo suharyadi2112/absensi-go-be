@@ -5,9 +5,6 @@ import (
 	"encoding/base64"
 
 	conFig "absensi/config"
-
-	// usec "absensi/usecase"
-
 	"net/http"
 	"time"
 

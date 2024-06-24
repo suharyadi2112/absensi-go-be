@@ -5,21 +5,29 @@ import (
 	"absensi/models"
 	"database/sql"
 	"errors"
-	"fmt"
-	"log"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 )
+
+var logger *logrus.Logger
 
 // Conn struct yang menampung instance database
 type Conn struct {
 	DB *sql.DB
 }
+type AbsensiDetailJamMasuk struct {
+	Absensi *models.Absensi
+	JMasuk  sql.NullString
+}
 
 // Fungsi untuk inisialisasi handler dengan instance database
 func NewCon() (*Conn, error) {
+	ctx := "Controller-NewCon"
 	dbG, err := db.InitDBMySql()
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize database: %w", err)
+		db.InitLog(logger, ctx, "failed to initialize database", err, "error") // catat log
+		return nil, err
 	}
 
 	return &Conn{
@@ -27,16 +35,12 @@ func NewCon() (*Conn, error) {
 	}, nil
 }
 
-type AbsensiDetailJamMasuk struct {
-	Absensi *models.Absensi
-	JMasuk  sql.NullString
-}
-
 func (h *Conn) GetAbsenTopController(dateS string) (DataAbsen []*models.Absensi, err error) {
 
+	ctx := "Controller-GetAbsenTopController"
 	conn, err := NewCon()
 	if err != nil {
-		log.Fatal(err)
+		db.InitLog(logger, ctx, "error koneksi database", err, "error") // catat log
 	}
 	// Eksekusi kueri SQL
 	rows, err := conn.DB.Query(`
@@ -59,6 +63,7 @@ func (h *Conn) GetAbsenTopController(dateS string) (DataAbsen []*models.Absensi,
 		LIMIT 5`, dateS)
 
 	if err != nil {
+		db.InitLog(logger, ctx, "error query database GetAbsenTopController", err, "error") // catat log
 		return nil, nil
 	}
 
@@ -74,6 +79,7 @@ func (h *Conn) GetAbsenTopController(dateS string) (DataAbsen []*models.Absensi,
 			&a.Updated, &a.UpdateAbsensi,
 			&a.IDSiswa.NamaLengkap, &a.IDSiswa.Foto, &a.IDKelas.Kelas, &a.IDPengajar.NamaLengkap, &a.IDPengajar.Foto,
 		); err != nil {
+			db.InitLog(logger, ctx, "Error executing SQL statement GetAbsenTopController", err, "error") // catat log
 			return nil, err
 		}
 		absensi = append(absensi, a)
@@ -85,28 +91,27 @@ func (h *Conn) GetAbsenTopController(dateS string) (DataAbsen []*models.Absensi,
 // Update absensi
 func (h *Conn) UpdateAbsenController(Keluar, tanggalHariIni string, idSiswa, idKelas int64) (err error) {
 
-	fmt.Println(Keluar, "tytyty")
+	ctx := "Controller-UpdateAbsenController"
 
 	// Prepare the UPDATE query
 	stmt, err := h.DB.Prepare("UPDATE absensi SET keluar = ?, notif_out = 0 WHERE id_siswa = ? AND tgl = ? AND id_kelas = ?")
 	if err != nil {
-		log.Fatal(err)
+		db.InitLog(logger, ctx, "error query database UpdateAbsenController", err, "error") // catat log
 		return err
 	}
 	defer stmt.Close()
 	// Execute the UPDATE query
 	_, err = stmt.Exec(Keluar, idSiswa, tanggalHariIni, idKelas)
 	if err != nil {
-		log.Fatal(err)
+		db.InitLog(logger, ctx, "Error executing SQL statement UpdateAbsenController", err, "error") // catat log
 		return err
 	}
-	fmt.Println("success update absen", idSiswa, idKelas)
-
 	return nil
 }
 
 func (h *Conn) PostAbsenSiswaController(timeOnly, tanggalHariIni, tipeAbsen string, idSiswa, idKelas int64) (err error) {
 
+	ctx := "Controller-PostAbsenSiswaController"
 	var query string
 
 	// Prepare the SQL statement
@@ -115,11 +120,12 @@ func (h *Conn) PostAbsenSiswaController(timeOnly, tanggalHariIni, tipeAbsen stri
 	} else if tipeAbsen == "keluar" {
 		query = "INSERT INTO absensi (id_siswa, id_kelas, absensi, tgl, keluar, notif_out) VALUES (?, ?, ?, ?, ?, ?)"
 	} else {
+		db.InitLog(logger, ctx, "warning invalid tipeAbsen", nil, "warning") // catat log
 		return errors.New("invalid tipeAbsen")
 	}
 	stmt, err := h.DB.Prepare(query)
 	if err != nil {
-		log.Fatal("Error preparing SQL statement:", err)
+		db.InitLog(logger, ctx, "Error preparing SQL statement PostAbsenSiswaController", err, "error") // catat log
 		return err
 	}
 	defer stmt.Close()
@@ -127,7 +133,7 @@ func (h *Conn) PostAbsenSiswaController(timeOnly, tanggalHariIni, tipeAbsen stri
 	// Execute the SQL statement
 	_, err = stmt.Exec(idSiswa, idKelas, "H", tanggalHariIni, timeOnly, "0")
 	if err != nil {
-		log.Fatal("Error executing SQL statement:", err)
+		db.InitLog(logger, ctx, "Error executing SQL statement PostAbsenSiswaController", err, "error") // catat log
 		return err
 	}
 
@@ -136,11 +142,12 @@ func (h *Conn) PostAbsenSiswaController(timeOnly, tanggalHariIni, tipeAbsen stri
 
 func (h *Conn) PostAbsenGuruController(timeOnly, tanggalHariIni string, idPengajar int64) (err error) {
 
+	ctx := "Controller-PostAbsenGuruController"
 	query := "INSERT INTO absensi (id_pengajar, absensi, tgl, masuk, status_in) VALUES (?, ?, ?, ?, ?)"
 
 	stmt, err := h.DB.Prepare(query)
 	if err != nil {
-		log.Fatal("Error preparing SQL statement:", err)
+		db.InitLog(logger, ctx, "Error preparing SQL statement PostAbsenGuruController", err, "error") // catat log
 		return err
 	}
 	defer stmt.Close()
@@ -148,7 +155,7 @@ func (h *Conn) PostAbsenGuruController(timeOnly, tanggalHariIni string, idPengaj
 	// Execute the SQL statement
 	_, err = stmt.Exec(idPengajar, "H", tanggalHariIni, timeOnly, "0")
 	if err != nil {
-		log.Fatal("Error executing SQL statement:", err)
+		db.InitLog(logger, ctx, "Error Execute SQL statement PostAbsenGuruController", err, "error") // catat log
 		return err
 	}
 
@@ -157,6 +164,7 @@ func (h *Conn) PostAbsenGuruController(timeOnly, tanggalHariIni string, idPengaj
 
 func (h *Conn) GetOneAbsensiSiswaController(idSiswa, idKelas int64, date string) (dataOneAbsen *AbsensiDetailJamMasuk, err error) {
 
+	ctx := "Controller-GetOneAbsensiSiswaController"
 	query := `SELECT absensi.id, absensi.keluar, CONCAT(tgl, ' ', masuk) as j_masuk FROM absensi WHERE id_siswa = ? AND tgl = ? AND id_kelas = ?`
 
 	row := h.DB.QueryRow(query, idSiswa, date, idKelas)
@@ -168,8 +176,10 @@ func (h *Conn) GetOneAbsensiSiswaController(idSiswa, idKelas int64, date string)
 
 	if err == sql.ErrNoRows {
 		// Data absen tidak ditemukan
-		return nil, nil // Bukan error 500
+		db.InitLog(logger, ctx, "warning data siswa not found GetOneAbsensiSiswaController", nil, "warning") // catat log
+		return nil, nil                                                                                      // Bukan error 500
 	} else if err != nil {
+		db.InitLog(logger, ctx, "Error preparing SQL statement GetOneAbsensiSiswaController", err, "error") // catat log
 		return nil, err
 	}
 
@@ -183,6 +193,7 @@ func (h *Conn) GetOneAbsensiSiswaController(idSiswa, idKelas int64, date string)
 
 func (h *Conn) GetSiswaController(nis string) (DataSiswa *models.Siswa, err error) {
 
+	ctx := "Controller-GetSiswaController"
 	var s models.Siswa
 	err = h.DB.QueryRow(`SELECT
 						s.id_siswa,
@@ -198,6 +209,7 @@ func (h *Conn) GetSiswaController(nis string) (DataSiswa *models.Siswa, err erro
 					WHERE s.nis = ?`, nis).Scan(&s.ID, &s.IDKelas.ID, &s.NIS, &s.NamaLengkap, &s.IDKelas.Kelas, &s.Alamat, &s.Foto)
 
 	if err != nil {
+		db.InitLog(logger, ctx, "Error preparing SQL statement GetSiswaController", err, "error") // catat log
 		return nil, err
 	}
 
@@ -206,6 +218,7 @@ func (h *Conn) GetSiswaController(nis string) (DataSiswa *models.Siswa, err erro
 
 func (h *Conn) GetGuruController(nip string) (DataGuru *models.Pengajar, err error) {
 
+	ctx := "Controller-GetGuruController"
 	query := `SELECT id_pengajar, nip, nama_lengkap, username_login, password_login, pswd, alamat, tempat_lahir, tgl_lahir, jenis_kelamin, agama, no_telp, email, foto, blokir FROM pengajar WHERE nip = ?`
 
 	row := h.DB.QueryRow(query, nip)
@@ -229,6 +242,7 @@ func (h *Conn) GetGuruController(nip string) (DataGuru *models.Pengajar, err err
 		&pengajar.Blokir,
 	)
 	if err != nil {
+		db.InitLog(logger, ctx, "Error Execute SQL statement GetGuruController", err, "error") // catat log
 		return nil, err
 	}
 
@@ -237,6 +251,7 @@ func (h *Conn) GetGuruController(nip string) (DataGuru *models.Pengajar, err err
 
 func (h *Conn) CountSiswaController(formCode string) (DataCountSiswa int, err error) {
 
+	ctx := "Controller-GetGuruController"
 	sanitizedCode := strings.ReplaceAll(formCode, ".", "")
 	sanitizedCode = strings.ReplaceAll(sanitizedCode, " ", "")
 
@@ -244,8 +259,10 @@ func (h *Conn) CountSiswaController(formCode string) (DataCountSiswa int, err er
 	err = h.DB.QueryRow(`SELECT COUNT(*) FROM siswa WHERE nis = ?`, sanitizedCode).Scan(&qSiswa)
 	if err == sql.ErrNoRows {
 		// Data absen tidak ditemukan
-		return 0, nil // Bukan error 500
+		db.InitLog(logger, ctx, "warning data siswa not found CountSiswaController", nil, "warning") // catat log
+		return 0, nil                                                                                // Bukan error 500
 	} else if err != nil {
+		db.InitLog(logger, ctx, "Error preparing SQL statement CountSiswaController", err, "error") // catat log
 		return 0, err
 	}
 
@@ -254,6 +271,7 @@ func (h *Conn) CountSiswaController(formCode string) (DataCountSiswa int, err er
 }
 func (h *Conn) CountGuruController(formCode string) (DataCountGuru int, err error) {
 
+	ctx := "Controller-CountGuruController"
 	sanitizedCode := strings.ReplaceAll(formCode, ".", "")
 	sanitizedCode = strings.ReplaceAll(sanitizedCode, " ", "")
 
@@ -261,8 +279,10 @@ func (h *Conn) CountGuruController(formCode string) (DataCountGuru int, err erro
 	err = h.DB.QueryRow("SELECT COUNT(*) FROM pengajar WHERE nip = ?", sanitizedCode).Scan(&qGuru)
 	if err == sql.ErrNoRows {
 		// Data absen tidak ditemukan
-		return 0, nil // Bukan error 500
+		db.InitLog(logger, ctx, "warning data guru not found CountGuruController", nil, "warning") // catat log
+		return 0, nil                                                                              // Bukan error 500
 	} else if err != nil {
+		db.InitLog(logger, ctx, "Error preparing SQL statement CountGuruController", err, "error") // catat log
 		return 0, err
 	}
 
@@ -272,6 +292,7 @@ func (h *Conn) CountGuruController(formCode string) (DataCountGuru int, err erro
 
 func (h *Conn) GetOneAbsensiGuruController(idPengajar int64, date string) (dataOneAbsen *AbsensiDetailJamMasuk, err error) {
 
+	ctx := "Controller-GetOneAbsensiGuruController"
 	query := `SELECT absensi.id, absensi.keluar, CONCAT(tgl, ' ', masuk) as j_masuk FROM absensi WHERE id_pengajar = ? AND tgl = ?`
 
 	row := h.DB.QueryRow(query, idPengajar, date)
@@ -283,8 +304,10 @@ func (h *Conn) GetOneAbsensiGuruController(idPengajar int64, date string) (dataO
 
 	if err == sql.ErrNoRows {
 		// Data absen tidak ditemukan
-		return nil, nil // Bukan error 500
+		db.InitLog(logger, ctx, "warning data guru not found GetOneAbsensiGuruController", nil, "warning") // catat log
+		return nil, nil                                                                                    // Bukan error 500
 	} else if err != nil {
+		db.InitLog(logger, ctx, "Error preparing SQL statement GetOneAbsensiGuruController", err, "error") // catat log
 		return nil, err
 	}
 
@@ -299,20 +322,20 @@ func (h *Conn) GetOneAbsensiGuruController(idPengajar int64, date string) (dataO
 // Update absensi guru
 func (h *Conn) UpdateAbsenGuruController(Keluar, tanggalHariIni string, idPengajar int64) (err error) {
 
+	ctx := "Controller-UpdateAbsenGuruController"
 	// Prepare the UPDATE query
 	stmt, err := h.DB.Prepare("UPDATE absensi SET keluar = ?, notif_out = 0 WHERE id_pengajar = ? AND tgl = ?")
 	if err != nil {
-		log.Fatal(err)
+		db.InitLog(logger, ctx, "Error preparing SQL statement UpdateAbsenGuruController", err, "error") // catat log
 		return err
 	}
 	defer stmt.Close()
 	// Execute the UPDATE query
 	_, err = stmt.Exec(Keluar, idPengajar, tanggalHariIni)
 	if err != nil {
-		log.Fatal(err)
+		db.InitLog(logger, ctx, "Error Execute SQL statement UpdateAbsenGuruController", err, "error") // catat log
 		return err
 	}
-	fmt.Println("success update absen", idPengajar)
 
 	return nil
 }

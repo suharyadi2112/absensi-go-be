@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"time"
 
@@ -34,16 +33,19 @@ var (
 	pusherSecret  string
 	pusherCluster string
 
+	logger    *logrus.Logger
 	dsnSentry string
 )
 
 func init() {
-
+	ctx := "DB-InitDB"
 	// Load environment variables from .env file
 	err := godotenv.Load("../.env")
 	if err != nil {
-		log.Fatal("Error loading .env file", err.Error())
+		InitLog(logger, ctx, "Error loading .env file", err, "error") // catat log
 	}
+
+	logger = logrus.New()
 
 	// Initialize package-level variables
 	dbHost = os.Getenv("DB_HOST")
@@ -72,8 +74,8 @@ func init() {
 		TracesSampleRate: 1.0,
 	})
 
-	if err != nil {
-		fmt.Println("Gagal terhubung ke Sentry:", errSentry)
+	if errSentry != nil {
+		InitLog(logger, ctx, "Gagal terhubung ke Sentry", errSentry, "error") // catat log
 	}
 
 	defer sentry.Flush(2 * time.Second)
@@ -82,7 +84,7 @@ func init() {
 // LOGRUS
 func InitLogRus() *logrus.Logger {
 
-	logger := logrus.New()
+	ctx := "DB-InitLogRus"
 
 	logger.SetFormatter(&logrus.JSONFormatter{})
 
@@ -93,7 +95,7 @@ func InitLogRus() *logrus.Logger {
 	// Dapatkan informasi file
 	fileInfo, err := os.Stat(logFileName)
 	if err != nil {
-		fmt.Println("Gagal mendapatkan informasi file log:", err)
+		InitLog(logger, ctx, "Gagal mendapatkan informasi file log", err, "error") // catat log
 	}
 
 	// Cek ukuran file
@@ -106,7 +108,7 @@ func InitLogRus() *logrus.Logger {
 	}
 	file, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_APPEND, 0666) //buka file log
 	if err != nil {
-		fmt.Println("Gagal membuka file log:", err)
+		InitLog(logger, ctx, "Gagal membuka file log", err, "error") // catat log
 	}
 
 	// Menggunakan io.MultiWriter untuk mencatat log ke file dan console
@@ -119,9 +121,10 @@ func InitLogRus() *logrus.Logger {
 
 // log config
 func createLogFile(fileName string) {
+	ctx := "DB-createLogFile"
 	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666) // buat file
 	if err != nil {
-		fmt.Println("Gagal membuat file log:", err)
+		InitLog(logger, ctx, "Gagal membuat file log", err, "error") // catat log
 	}
 	defer file.Close()
 }
@@ -158,15 +161,17 @@ func InitLog(logger *logrus.Logger, context, addInfo string, err error, errorTyp
 // MYSQL
 func InitDBMySql() (*sql.DB, error) {
 
+	ctx := "DB-InitDBMySql"
+
 	dsn := dbUser + ":" + dbPassword + "@tcp(" + dbHost + ":" + dbPort + ")/" + dbName
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		fmt.Println(err.Error(), "koneksi mysql 2")
+		InitLog(logger, ctx, "koneksi mysql ", err, "error") // catat log
 	}
 
 	err = db.Ping()
 	if err != nil {
-		fmt.Println(err.Error(), "koneksi mysql 2")
+		InitLog(logger, ctx, "koneksi mysql ping", err, "error") // catat log
 	}
 
 	return db, nil
@@ -174,16 +179,17 @@ func InitDBMySql() (*sql.DB, error) {
 
 // RABBIT MQ
 func InitRabbitMQ() (*amqp.Channel, error) {
+	ctx := "DB-InitRabbitMQ"
 
 	connStr := fmt.Sprintf("amqp://%s:%s@%s:%s/", rabbitUser, rabbitPassword, rabbitHost, rabbitPort)
 	conn, err := amqp.Dial(connStr)
 	if err != nil {
-		fmt.Println(err.Error(), "koneksi rabbitMQ 1")
+		InitLog(logger, ctx, "koneksi rabbitMQ", err, "error") // catat log
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
-		fmt.Println(err.Error(), "koneksi rabbitMQ 2")
+		InitLog(logger, ctx, "koneksi rabbitMQ Ping", err, "error") // catat log
 	}
 
 	return ch, nil
