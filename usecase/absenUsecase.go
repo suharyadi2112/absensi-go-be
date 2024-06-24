@@ -5,7 +5,6 @@ import (
 	cont "absensi/controllers"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"time"
@@ -16,9 +15,12 @@ import (
 	"github.com/streadway/amqp"
 )
 
-var controller *cont.Conn
-var pusherChanel string
-var pusherEvent string
+var (
+	controller   *cont.Conn
+	pusherChanel string
+	pusherEvent  string
+	logger       *logrus.Logger
+)
 
 type AbsenUsecase struct {
 	RabMQ  *amqp.Channel
@@ -26,15 +28,18 @@ type AbsenUsecase struct {
 }
 
 func init() {
+	ctx := "Usecase-InitUsecase"
 	var err error
+
+	logger = conFig.InitLogRus()
 
 	controller, err = cont.NewCon()
 	if err != nil {
-		log.Fatal("Error NewCon", err.Error())
+		conFig.InitlogError(logger, ctx, "error terhubung dengan controller", err, "error") // catat log
 	}
 	err = godotenv.Load("../.env")
 	if err != nil {
-		log.Fatal("Error loading .env file on absensi usecase", err.Error())
+		conFig.InitlogError(logger, ctx, "Error loading .env file on absensi usecase", err, "error") // catat log
 	}
 
 	pusherChanel = os.Getenv("APP_CHANNEL")
@@ -44,8 +49,10 @@ func init() {
 
 // Fungsi untuk inisialisasi handler dengan instance database
 func NewConUsecase() (*AbsenUsecase, error) {
+	ctx := "Usecase-NewConUsecase"
 	rabMQD, err := conFig.InitRabbitMQ()
 	if err != nil {
+		conFig.InitlogError(logger, ctx, "failed to initialize rabbit", err, "error") // catat log
 		return nil, fmt.Errorf("failed to initialize rabbit: %w", err)
 	}
 	pusHER := conFig.InitPusher()
@@ -58,14 +65,14 @@ func NewConUsecase() (*AbsenUsecase, error) {
 
 // use case absen top
 func GetAbsenTopUsecase(tanggalhariIni string) ([]map[string]interface{}, error) {
+	ctx := "Usecase-GetAbsenTopUsecase"
 
 	fmt.Println("Tanggal sekarang - get absen top:", tanggalhariIni)
-
 	result, err := controller.GetAbsenTopController(tanggalhariIni)
-
 	fmt.Println(result)
 
 	if err != nil {
+		conFig.InitlogError(logger, ctx, "error get data absen get top", err, "error") // catat log
 		return nil, err
 	}
 
@@ -89,14 +96,18 @@ func GetAbsenTopUsecase(tanggalhariIni string) ([]map[string]interface{}, error)
 // use case simpan tap scan absen
 func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehariini, timeonlyHariini string) (res map[string]interface{}, codeHttp int, err error) {
 
+	ctx := "Usecase-PostAbsenTopUsecase"
+
 	fmt.Println("Form code - post absen:", formCode)
 
 	countSiswa, err := controller.CountSiswaController(formCode)
 	if err != nil {
+		conFig.InitlogError(logger, ctx, "error CountSiswaController", err, "error") // catat log
 		return nil, 500, err
 	}
 	countGuru, err := controller.CountGuruController(formCode)
 	if err != nil {
+		conFig.InitlogError(logger, ctx, "error CountGuruController", err, "error") // catat log
 		return nil, 500, err
 	}
 
@@ -104,6 +115,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 		resSiswa, err := controller.GetSiswaController(formCode)
 		if err != nil {
+			conFig.InitlogError(logger, ctx, "error GetSiswaController", err, "error") // catat log
 			return nil, 500, err
 		}
 
@@ -112,6 +124,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 		cAbsen, err := controller.GetOneAbsensiSiswaController(id_siswa, id_kelas, tanggalhariIni)
 
 		if err != nil {
+			conFig.InitlogError(logger, ctx, "error GetOneAbsensiSiswaController", err, "error") // catat log
 			return nil, 500, err
 		}
 
@@ -123,6 +136,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 			if jam_masuk.Valid { //tidak boleh null
 				jamFix, err := calculateHoursDifference(dateTimehariini, jam_masuk.String) //cek veda jam
 				if err != nil {
+					conFig.InitlogError(logger, ctx, "error calculateHoursDifference", err, "error") // catat log
 					return nil, 500, err
 				}
 				jamFixCon = jamFix //assign jam fix
@@ -133,6 +147,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 					err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, "absenready", "siswa", id_siswa, id_kelas, "satu")
 					if err != nil {
+						conFig.InitlogError(logger, ctx, "error DeclarePublishAbsen", err, "error") // catat log
 						return nil, 500, err
 					}
 					r.PushPusher(formCode) //sendPusher
@@ -152,14 +167,14 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 					responseItem := map[string]interface{}{
 						"Message": "Anda sudah melakukan absensi",
 					}
-					logrus.Info("sudah melakukan absen #2ess3")
+					conFig.InitlogError(logger, ctx, "sudah melakukan absen #2ess3", nil, "info") // catat log
 					return responseItem, 400, nil
 				}
 			} else { //kemungkinan terjadi saat data absen ada tapi jam masuk maupun pulang kosong/null
 				responseItem := map[string]interface{}{
 					"Message": "Anda sudah melakukan absensi",
 				}
-				logrus.Info("sudah melakukan absen #k3k3")
+				conFig.InitlogError(logger, ctx, "sudah melakukan absen #k3k3", nil, "info") // catat log//
 				return responseItem, 400, nil
 			}
 
@@ -167,7 +182,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 			parsedTime, err := time.Parse("15:04:05", timeonlyHariini)
 			if err != nil {
-				fmt.Println("Error parsing time:", err)
+				conFig.InitlogError(logger, ctx, "Error parsing time", err, "error") // catat log
 				return nil, 500, err
 			}
 			morningStart, _ := time.Parse("15:04:05", "05:00:00")
@@ -193,6 +208,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 				tipeAbsen = "masuk"
 				err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, tipeAbsen, "siswa", id_siswa, id_kelas, "dua")
 				if err != nil {
+					conFig.InitlogError(logger, ctx, "error DeclarePublishAbsen", err, "error") // catat log
 					return nil, 500, err
 				}
 
@@ -201,6 +217,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 				tipeAbsen = "keluar"
 				err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, tipeAbsen, "siswa", id_siswa, id_kelas, "tiga")
 				if err != nil {
+					conFig.InitlogError(logger, ctx, "error DeclarePublishAbsen", err, "error") // catat log
 					return nil, 500, err
 				}
 
@@ -208,7 +225,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 				responseItem := map[string]interface{}{
 					"Message": "Anda sudah melakukan absensi",
 				}
-				fmt.Println("bukan waktu sekolah")
+				conFig.InitlogError(logger, ctx, "bukan waktu sekolah", nil, "info") // catat log
 				return responseItem, 400, nil
 			}
 
@@ -233,6 +250,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 		resGuru, err := controller.GetGuruController(formCode)
 		if err != nil {
+			conFig.InitlogError(logger, ctx, "error GetGuruController", err, "error") // catat log
 			return nil, 500, err
 		}
 
@@ -246,21 +264,21 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 		cAbsenGuru, err := controller.GetOneAbsensiGuruController(id_pengajar, tanggalhariIni)
 		if err != nil {
+			conFig.InitlogError(logger, ctx, "error GetOneAbsensiGuruController", err, "error") // catat log
 			return nil, 500, err
 		}
 
 		if cAbsenGuru != nil {
-			logrus.Info(cAbsenGuru, "isi")
 			var jamFixConGur int
 			jam_masuk := cAbsenGuru.JMasuk
 			keluarGur := cAbsenGuru.Absensi.Keluar
 			if jam_masuk.Valid { //tidak boleh null
 				jamFixGur, err := calculateHoursDifference(dateTimehariini, jam_masuk.String) //cek veda jam
 				if err != nil {
+					conFig.InitlogError(logger, ctx, "error calculateHoursDifference", err, "error") // catat log
 					return nil, 500, err
 				}
 				jamFixConGur = jamFixGur //assign jam fix
-				fmt.Println(jamFixConGur, "masok guru")
 			}
 
 			if jamFixConGur > 0 {
@@ -268,6 +286,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 				if !keluarGur.Valid {
 					err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, "", "guru", id_pengajar, 0, "empat")
 					if err != nil {
+						conFig.InitlogError(logger, ctx, "error DeclarePublishAbsen", err, "error") // catat log
 						return nil, 500, err
 					}
 					r.PushPusher(formCode) //sendPusher
@@ -307,6 +326,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 			logrus.Info(cAbsenGuru)
 			err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, "", "guru", id_pengajar, 0, "lima")
 			if err != nil {
+				conFig.InitlogError(logger, ctx, "error DeclarePublishAbsen", err, "error") // catat log
 				return nil, 500, err
 			}
 			r.PushPusher(formCode) //sendPusher
@@ -330,7 +350,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 		responseItem := map[string]interface{}{
 			"Message": "Kartu anda tidak terdaftar",
 		}
-		logrus.Info(formCode, "inputan no kartu")
+		conFig.InitlogError(logger, ctx, "Kartu anda tidak terdaftar", err, "warning") // catat log
 		return responseItem, 400, nil
 
 	}
@@ -340,18 +360,19 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 func calculateHoursDifference(datetime, j_masuk string) (jMasukDiff int, err error) {
 
+	ctx := "Usecase-calculateHoursDifference"
+
 	fmt.Println(j_masuk, "cek j_masuk")
 	layout := "2006-01-02 15:04:05" //layout format time yang dikonvert
 
 	tSatu, err := time.Parse(layout, datetime)
 	if err != nil {
-		fmt.Println("error parsing datetime:", err.Error())
+		conFig.InitlogError(logger, ctx, "Error parsing datetime", err, "error") // catat log
 		return 0, err
 	}
 	tDua, err := time.Parse(layout, j_masuk)
 	if err != nil {
-
-		fmt.Println("error parsing j_masuk:", err.Error())
+		conFig.InitlogError(logger, ctx, "Error parsing j_masuk", err, "error") // catat log
 		return 0, err
 	}
 
@@ -363,12 +384,16 @@ func calculateHoursDifference(datetime, j_masuk string) (jMasukDiff int, err err
 
 func (r *AbsenUsecase) PushPusher(formCode string) {
 
+	ctx := "Usecase-PushPusher"
+
 	r.Pusher.Trigger(pusherChanel, pusherEvent, map[string]string{"formCode": formCode})
-	fmt.Println("Pesan berhasil dikirim ke Pusher - ", formCode)
+	conFig.InitlogError(logger, ctx, "push to pusher", nil, "info") // catat log
 
 }
 
 func (r *AbsenUsecase) DeclarePublishAbsen(timeKeluarORmasuk, tanggalHariIni, tipeAbsen, tipeOrang string, idSiswaOrGuru, idKelas int64, jenisQue string) (err error) {
+
+	ctx := "Usecase-DeclarePublishAbsen"
 
 	q, err := r.RabMQ.QueueDeclare(
 		"absensi", // queue name
@@ -379,7 +404,7 @@ func (r *AbsenUsecase) DeclarePublishAbsen(timeKeluarORmasuk, tanggalHariIni, ti
 		nil,       // arguments
 	)
 	if err != nil {
-		log.Fatalf("Failed to declare a queue: %v", err)
+		conFig.InitlogError(logger, ctx, "Failed to declare a queue", err, "error") // catat log
 		return err
 	}
 
@@ -397,7 +422,7 @@ func (r *AbsenUsecase) DeclarePublishAbsen(timeKeluarORmasuk, tanggalHariIni, ti
 	// Meng-marshal data menjadi JSON
 	body, err := json.Marshal(data)
 	if err != nil {
-		log.Fatalf("Failed to marshal JSON: %v", err)
+		conFig.InitlogError(logger, ctx, "Failed to marshal JSON", err, "error") // catat log
 		return err
 	}
 
@@ -411,7 +436,7 @@ func (r *AbsenUsecase) DeclarePublishAbsen(timeKeluarORmasuk, tanggalHariIni, ti
 			Body:        body,
 		})
 	if err != nil {
-		log.Fatalf("Failed to publish a message: %v", err)
+		conFig.InitlogError(logger, ctx, "Failed to publish a message", err, "error") // catat log
 		return err
 	}
 	return nil
