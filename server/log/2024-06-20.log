@@ -1,4 +1,0 @@
-{"context":"RunningServer","info":"server running at - localhost:1323","level":"info","msg":"Informational message","time":"2024-06-20T10:46:08+07:00"}
-{"context":"Handler-GetAbsenTopHandler","info":"success get absen top","level":"info","msg":"Informational message","time":"2024-06-20T10:46:38+07:00"}
-{"context":"RunningServer","info":"server running at - localhost:1323","level":"info","msg":"Informational message","time":"2024-06-20T10:50:18+07:00"}
-{"context":"Handler-GetAbsenTopHandler","info":"success get absen top","level":"info","msg":"Informational message","time":"2024-06-20T10:50:32+07:00"}

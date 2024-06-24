@@ -50,6 +50,7 @@ func init() {
 func GetAbsenTopHandler(c echo.Context) error {
 	ctx := "Handler-GetAbsenTopHandler"
 	absenTopData, err := usec.GetAbsenTopUsecase(tanggalHariIni)
+	// err = errors.New("math: square root of negative number")
 
 	if err != nil {
 		conFig.InitlogError(logger, ctx, "error get absen top", err, "error") // catat log
