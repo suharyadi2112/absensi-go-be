@@ -3,12 +3,17 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"os"
+	"strings"
 	"sync"
 
 	dbRab "absensi/config"
 	cont "absensi/controllers"
 
+	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
@@ -16,6 +21,10 @@ import (
 var (
 	controller *cont.Conn
 	logger     *logrus.Logger
+	waHost     string
+	waPort     string
+	waUsername string
+	waPassword string
 )
 
 type ConnAmqpAbsen struct {
@@ -31,6 +40,10 @@ type PayloadRabbit struct {
 }
 
 func init() {
+	waHost = os.Getenv("WA_HOST")
+	waPort = os.Getenv("WA_PORT")
+	waUsername = os.Getenv("WA_USERNAME")
+	waPassword = os.Getenv("WA_PASSWORD")
 
 	logger = dbRab.InitLogRus()
 
@@ -136,7 +149,7 @@ func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
 			}
 
 		} else {
-			dbRab.InitLog(logger, ctx, "tanpa jenis proses", nil, "info") // catat log
+			dbRab.InitLog(logger, ctx, "tanpa jenis proses", nil, "warning") // catat log
 		}
 
 		logrus.Info("succes")
@@ -181,4 +194,38 @@ func (amqp *ConnAmqpAbsen) ProcessAmqpAbsen(msgChannel chan<- amqp.Delivery) {
 	}
 
 	close(msgChannel)
+}
+
+// Handler untuk melakukan permintaan HTTP POST ke URL eksternal
+func GetTokenWA(c echo.Context) {
+
+	ctx := "Amqp-GetTokenWA"
+	url := fmt.Sprintf("http://%s:%s/one/login", waHost, waPort)
+	method := "POST"
+
+	payload := strings.NewReader(fmt.Sprintf(`{
+		"username" : "%s",
+		"password" : "%s"
+	}`, waUsername, waPassword))
+
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, payload)
+	if err != nil {
+		dbRab.InitLog(logger, ctx, "Request creation wa token failed", err, "error")
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	res, err := client.Do(req)
+	if err != nil {
+		dbRab.InitLog(logger, ctx, "Client do request failed", err, "error")
+	}
+	defer res.Body.Close()
+
+	_, err = io.ReadAll(res.Body)
+	if err != nil {
+		dbRab.InitLog(logger, ctx, "Read body failed", err, "error")
+	} else {
+		dbRab.InitLog(logger, ctx, "Success send wa to orang tua", nil, "info")
+	}
+
 }
