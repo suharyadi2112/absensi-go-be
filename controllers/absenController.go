@@ -180,8 +180,8 @@ func (h *Conn) GetOneAbsensiSiswaController(idSiswa, idKelas int64, date string)
 
 	if err == sql.ErrNoRows {
 		// Data absen tidak ditemukan
-		db.InitLog(logger, ctx, "warning data siswa not found GetOneAbsensiSiswaController", nil, "warning") // catat log
-		return nil, nil                                                                                      // Bukan error 500
+		db.InitLog(logger, ctx, "check data siswa not found GetOneAbsensiSiswaController", nil, "info") // catat log
+		return nil, nil                                                                                 // Bukan error 500
 	} else if err != nil {
 		db.InitLog(logger, ctx, "Error preparing SQL statement GetOneAbsensiSiswaController", err, "error") // catat log
 		return nil, err
@@ -263,8 +263,8 @@ func (h *Conn) CountSiswaController(formCode string) (DataCountSiswa int, err er
 	err = h.DB.QueryRow(`SELECT COUNT(*) FROM siswa WHERE nis = ?`, sanitizedCode).Scan(&qSiswa)
 	if err == sql.ErrNoRows {
 		// Data absen tidak ditemukan
-		db.InitLog(logger, ctx, "warning data siswa not found CountSiswaController", nil, "warning") // catat log
-		return 0, nil                                                                                // Bukan error 500
+		db.InitLog(logger, ctx, "check data siswa not found CountSiswaController", nil, "info") // catat log
+		return 0, nil                                                                           // Bukan error 500
 	} else if err != nil {
 		db.InitLog(logger, ctx, "Error preparing SQL statement CountSiswaController", err, "error") // catat log
 		return 0, err
@@ -283,8 +283,8 @@ func (h *Conn) CountGuruController(formCode string) (DataCountGuru int, err erro
 	err = h.DB.QueryRow("SELECT COUNT(*) FROM pengajar WHERE nip = ?", sanitizedCode).Scan(&qGuru)
 	if err == sql.ErrNoRows {
 		// Data absen tidak ditemukan
-		db.InitLog(logger, ctx, "warning data guru not found CountGuruController", nil, "warning") // catat log
-		return 0, nil                                                                              // Bukan error 500
+		db.InitLog(logger, ctx, "check data guru not found CountGuruController", nil, "info") // catat log
+		return 0, nil                                                                         // Bukan error 500
 	} else if err != nil {
 		db.InitLog(logger, ctx, "Error preparing SQL statement CountGuruController", err, "error") // catat log
 		return 0, err
@@ -308,8 +308,8 @@ func (h *Conn) GetOneAbsensiGuruController(idPengajar int64, date string) (dataO
 
 	if err == sql.ErrNoRows {
 		// Data absen tidak ditemukan
-		db.InitLog(logger, ctx, "warning data guru not found GetOneAbsensiGuruController", nil, "warning") // catat log
-		return nil, nil                                                                                    // Bukan error 500
+		db.InitLog(logger, ctx, "check data guru not found GetOneAbsensiGuruController", nil, "check") // catat log
+		return nil, nil                                                                                // Bukan error 500
 	} else if err != nil {
 		db.InitLog(logger, ctx, "Error preparing SQL statement GetOneAbsensiGuruController", err, "error") // catat log
 		return nil, err
