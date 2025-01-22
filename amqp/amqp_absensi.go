@@ -13,7 +13,6 @@ import (
 	dbRab "absensi/config"
 	cont "absensi/controllers"
 
-	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
@@ -27,6 +26,9 @@ var (
 	waPassword string
 )
 
+type TokenWaResponse struct {
+	TokenWa string `json:"token"`
+}
 type ConnAmqpAbsen struct {
 	RabMQ *amqp.Channel
 }
@@ -119,6 +121,8 @@ func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
 			if err != nil {
 				dbRab.InitLog(logger, ctx, "Error update absen controller amqp satu", err, "error") // catat log
 				continue
+			} else {
+				sendMessageWa()
 			}
 
 		} else if jenisProses == "dua" || jenisProses == "tiga" {
@@ -128,6 +132,8 @@ func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
 			if err != nil {
 				dbRab.InitLog(logger, ctx, "Error post absen controller amqp dua | tiga:", err, "error") // catat log
 				continue
+			} else {
+				sendMessageWa()
 			}
 
 		} else if jenisProses == "empat" { //zona guru
@@ -137,6 +143,8 @@ func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
 			if err != nil {
 				dbRab.InitLog(logger, ctx, "Error post absen controller amqp empat", err, "error") // catat log
 				continue
+			} else {
+				sendMessageWa()
 			}
 
 		} else if jenisProses == "lima" {
@@ -146,6 +154,8 @@ func worker(msgChannel <-chan amqp.Delivery, wg *sync.WaitGroup) {
 			if err != nil {
 				dbRab.InitLog(logger, ctx, "Error post absen controller amqp lime", err, "error") // catat log
 				continue
+			} else {
+				sendMessageWa()
 			}
 
 		} else {
@@ -197,7 +207,7 @@ func (amqp *ConnAmqpAbsen) ProcessAmqpAbsen(msgChannel chan<- amqp.Delivery) {
 }
 
 // Handler untuk melakukan permintaan HTTP POST ke URL eksternal
-func GetTokenWA(c echo.Context) {
+func GetTokenWA() (resToken TokenWaResponse, err error) {
 
 	ctx := "Amqp-GetTokenWA"
 	url := fmt.Sprintf("http://%s:%s/one/login", waHost, waPort)
@@ -212,20 +222,38 @@ func GetTokenWA(c echo.Context) {
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
 		dbRab.InitLog(logger, ctx, "Request creation wa token failed", err, "error")
+		return resToken, err
 	}
 	req.Header.Add("Content-Type", "application/json")
 
 	res, err := client.Do(req)
 	if err != nil {
 		dbRab.InitLog(logger, ctx, "Client do request failed", err, "error")
+		return resToken, err
 	}
 	defer res.Body.Close()
 
-	_, err = io.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		dbRab.InitLog(logger, ctx, "Read body failed", err, "error")
-	} else {
-		dbRab.InitLog(logger, ctx, "Success send wa to orang tua", nil, "info")
+		return resToken, err
+	}
+
+	var tokenResponse TokenWaResponse
+	if err := json.Unmarshal(body, &tokenResponse); err != nil {
+		dbRab.InitLog(logger, ctx, "Unmarshal body failed token wa", err, "error")
+	}
+
+	return tokenResponse, err
+
+}
+
+func sendMessageWa() {
+	ctx := "Amqp-sendMessageWa"
+	resToken, err := GetTokenWA()
+
+	if err != nil {
+		dbRab.InitLog(logger, ctx, "Success retrieved token", err, "error")
 	}
 
 }

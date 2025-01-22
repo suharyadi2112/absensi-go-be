@@ -73,7 +73,6 @@ func init() {
 		// We recommend adjusting this value in production,
 		TracesSampleRate: 1.0,
 	})
-
 	if errSentry != nil {
 		InitLog(logger, ctx, "Gagal terhubung ke Sentry", errSentry, "error") // catat log
 	}
@@ -148,6 +147,7 @@ func InitLog(logger *logrus.Logger, context, addInfo string, err error, errorTyp
 	})
 
 	tags := map[string]string{"module": "absen", "context": context, "additional-info": addInfo}
+
 	switch errorType {
 
 	case "info":
@@ -159,7 +159,7 @@ func InitLog(logger *logrus.Logger, context, addInfo string, err error, errorTyp
 	case "error":
 		if err != nil {
 			entry = entry.WithError(err)
-			LogMessageSentry(sentry.LevelError, "Custom Error Title", addInfo, err, tags)
+			LogMessageSentry(sentry.LevelError, "Error Message", addInfo, err, tags)
 		}
 		entry.Error("An error occurred")
 	default:
@@ -243,7 +243,6 @@ func LogMessageSentry(level sentry.Level, title string, message string, err erro
 				},
 			}
 		}
-
 		sentry.CaptureEvent(event)
 	})
 }

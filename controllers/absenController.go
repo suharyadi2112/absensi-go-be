@@ -5,6 +5,7 @@ import (
 	"absensi/models"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -81,6 +82,11 @@ func (h *Conn) GetAbsenTopController(dateS string) (DataAbsen []*models.Absensi,
 			&a.Absensi, &a.Tanggal, &a.Masuk, &a.Keluar,
 			&a.StatusMasuk, &a.StatusKeluar, &a.NotifikasiMasuk, &a.NotifikasiKeluar,
 			&a.Updated, &a.UpdateAbsensi,
+			&a.Ket,
+			&a.Ket1,
+			&a.RefIn,
+			&a.RefOut,
+			&a.StatusUpdated,
 			&a.IDSiswa.NamaLengkap, &a.IDSiswa.Foto, &a.IDKelas.Kelas, &a.IDPengajar.NamaLengkap, &a.IDPengajar.Foto,
 		); err != nil {
 			db.InitLog(logger, ctx, "Error executing SQL statement GetAbsenTopController", err, "error") // catat log
@@ -169,7 +175,8 @@ func (h *Conn) PostAbsenGuruController(timeOnly, tanggalHariIni string, idPengaj
 func (h *Conn) GetOneAbsensiSiswaController(idSiswa, idKelas int64, date string) (dataOneAbsen *AbsensiDetailJamMasuk, err error) {
 
 	ctx := "Controller-GetOneAbsensiSiswaController"
-	query := `SELECT absensi.id, absensi.keluar, CONCAT(tgl, ' ', masuk) as j_masuk FROM absensi WHERE id_siswa = ? AND tgl = ? AND id_kelas = ?`
+	query := `SELECT absensi.id, absensi.keluar, CONCAT(tgl, ' ', masuk) as j_masuk FROM absensi WHERE id_siswa = ? AND tgl = ? AND id_kelas = ? ORDER BY
+	tgl DESC`
 
 	row := h.DB.QueryRow(query, idSiswa, date, idKelas)
 
@@ -342,4 +349,31 @@ func (h *Conn) UpdateAbsenGuruController(Keluar, tanggalHariIni string, idPengaj
 	}
 
 	return nil
+}
+
+// Update absensi guru
+func (h *Conn) PostInsertAbsensiController(id_siswa, id_kelas int64, tipeMasuk string, dateTimehariini, timeonlyHariini string, notifIn int, randomString string) (err error) {
+
+	ctx := "Controller-InsertAbsensiController"
+	query := `
+		INSERT INTO absensi (id_siswa, id_kelas, absensi, tgl, masuk, notif_in, ref_in)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`
+	stmt, err := h.DB.Prepare(query)
+	if err != nil {
+		db.InitLog(logger, ctx, "Error preparing SQL statement InsertAbsensiController", err, "error")
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(id_siswa, id_kelas, tipeMasuk, dateTimehariini, timeonlyHariini, notifIn, randomString)
+	if err != nil {
+		db.InitLog(logger, ctx, "Error executing SQL statement InsertAbsensiController", err, "error")
+		return err
+	}
+
+	db.InitLog(logger, ctx, fmt.Sprintf("Absensi for siswa %s successfully inserted", id_siswa), nil, "info")
+
+	return nil
+
 }

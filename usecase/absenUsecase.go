@@ -3,6 +3,7 @@ package usecase
 import (
 	conFig "absensi/config"
 	cont "absensi/controllers"
+	helper "absensi/helper"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -20,6 +21,7 @@ var (
 	pusherChanel string
 	pusherEvent  string
 	logger       *logrus.Logger
+	randomString string
 )
 
 type AbsenUsecase struct {
@@ -32,6 +34,7 @@ func init() {
 	var err error
 
 	logger = conFig.InitLogRus()
+	randomString = helper.GenerateRandomString(6)
 
 	controller, err = cont.NewCon()
 	if err != nil {
@@ -111,7 +114,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 		return nil, 500, err
 	}
 
-	if countSiswa > 0 {
+	if countSiswa > 0 { //section siswa
 
 		resSiswa, err := controller.GetSiswaController(formCode)
 		if err != nil {
@@ -122,11 +125,6 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 		id_siswa := resSiswa.ID.Int64
 		id_kelas := resSiswa.IDKelas.ID.Int64
 		cAbsen, err := controller.GetOneAbsensiSiswaController(id_siswa, id_kelas, tanggalhariIni)
-
-		if err != nil {
-			conFig.InitLog(logger, ctx, "error GetOneAbsensiSiswaController", err, "error") // catat log
-			return nil, 500, err
-		}
 
 		if cAbsen != nil {
 			var jamFixCon int
@@ -185,17 +183,17 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 				conFig.InitLog(logger, ctx, "Error parsing time", err, "error") // catat log
 				return nil, 500, err
 			}
-			morningStart, _ := time.Parse("15:04:05", "05:00:00")
-			noonEnd, _ := time.Parse("15:04:05", "12:00:00")
+			// morningStart, _ := time.Parse("15:04:05", "05:00:00")
+			// noonEnd, _ := time.Parse("15:04:05", "10:30:00")
 
-			afternunStart, _ := time.Parse("15:04:05", "12:00:00")
-			niteEnd, _ := time.Parse("15:04:05", "21:00:00")
+			// afternunStart, _ := time.Parse("15:04:05", "10:30:00")
+			// niteEnd, _ := time.Parse("15:04:05", "21:00:00")
 
 			//JAM TESTING
-			// morningStart, _ := time.Parse("15:04:05", "21:00:00")
-			// noonEnd, _ := time.Parse("15:04:05", "23:00:00")
-			// afternunStart, _ := time.Parse("15:04:05", "12:00:00")
-			// niteEnd, _ := time.Parse("15:04:05", "21:00:00")
+			morningStart, _ := time.Parse("15:04:05", "21:00:00")
+			noonEnd, _ := time.Parse("15:04:05", "23:00:00")
+			afternunStart, _ := time.Parse("15:04:05", "12:00:00")
+			niteEnd, _ := time.Parse("15:04:05", "21:00:00")
 
 			isMorning := parsedTime.After(morningStart) && parsedTime.Before(noonEnd)
 			isNite := parsedTime.After(afternunStart) && parsedTime.Before(niteEnd)
@@ -206,9 +204,16 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 			if isMorning {
 
 				tipeAbsen = "masuk"
-				err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, tipeAbsen, "siswa", id_siswa, id_kelas, "dua")
+				// err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, tipeAbsen, "siswa", id_siswa, id_kelas, "dua") //untuk RABITMQ
+				// if err != nil {
+				// 	conFig.InitLog(logger, ctx, "error DeclarePublishAbsen", err, "error") // catat log
+				// 	return nil, 500, err
+				// }
+
+				//insert table absensi
+				err = controller.PostInsertAbsensiController(id_siswa, id_kelas, "H", dateTimehariini, timeonlyHariini, 0, randomString)
 				if err != nil {
-					conFig.InitLog(logger, ctx, "error DeclarePublishAbsen", err, "error") // catat log
+					conFig.InitLog(logger, ctx, "error PostInsertAbsensiController", err, "error")
 					return nil, 500, err
 				}
 

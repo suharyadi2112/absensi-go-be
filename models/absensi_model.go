@@ -19,6 +19,11 @@ type Absensi struct {
 	NotifikasiKeluar sql.NullInt64  `json:"notif_out"`
 	Updated          sql.NullString `json:"updated"`
 	UpdateAbsensi    sql.NullString `json:"update_absensi"`
+	Ket              sql.NullString `json:"ket"`
+	Ket1             sql.NullString `json:"Ket1"`
+	RefIn            sql.NullString `json:"ref_in"`
+	RefOut           sql.NullString `json:"ref_out"`
+	StatusUpdated    sql.NullString `json:"status_updated"`
 }
 
 type Siswa struct {
