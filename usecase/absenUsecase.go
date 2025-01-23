@@ -22,6 +22,7 @@ var (
 	pusherEvent  string
 	logger       *logrus.Logger
 	randomString string
+	sch          string
 )
 
 type AbsenUsecase struct {
@@ -47,6 +48,7 @@ func init() {
 
 	pusherChanel = os.Getenv("APP_CHANNEL")
 	pusherEvent = os.Getenv("APP_EVENT")
+	sch = "PLT"
 
 }
 
@@ -124,6 +126,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 		id_siswa := resSiswa.ID.Int64
 		id_kelas := resSiswa.IDKelas.ID.Int64
+		no_hp_ortu := resSiswa.IDOrtu.NoHP.String
 		cAbsen, err := controller.GetOneAbsensiSiswaController(id_siswa, id_kelas, tanggalhariIni)
 
 		if cAbsen != nil {
@@ -190,8 +193,8 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 			// niteEnd, _ := time.Parse("15:04:05", "21:00:00")
 
 			//JAM TESTING
-			morningStart, _ := time.Parse("15:04:05", "21:00:00")
-			noonEnd, _ := time.Parse("15:04:05", "23:00:00")
+			morningStart, _ := time.Parse("15:04:05", "00:01:00")
+			noonEnd, _ := time.Parse("15:04:05", "23:59:00")
 			afternunStart, _ := time.Parse("15:04:05", "12:00:00")
 			niteEnd, _ := time.Parse("15:04:05", "21:00:00")
 
@@ -210,21 +213,29 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 				// 	return nil, 500, err
 				// }
 
-				//insert table absensi
-				err = controller.PostInsertAbsensiController(id_siswa, id_kelas, "H", dateTimehariini, timeonlyHariini, 0, randomString)
-				if err != nil {
-					conFig.InitLog(logger, ctx, "error PostInsertAbsensiController", err, "error")
-					return nil, 500, err
-				}
+				//insert table absensi + table wa
+				// err = controller.PostInsertAbsensiController(id_siswa, id_kelas, "H", dateTimehariini, timeonlyHariini, 0, randomString)
+				// if err != nil {
+				// 	conFig.InitLog(logger, ctx, "error PostInsertAbsensiController", err, "error")
+				// 	return nil, 500, err
+				// }
+
+				masukMessage := helper.GenerateMasukMessage(resSiswa.NamaLengkap.String, resSiswa.IDKelas.Kelas.String, dateTimehariini)
+				err = controller.PostInsertAbsensiWaController(randomString, sch, no_hp_ortu, masukMessage, "0", dateTimehariini, "in")
+				fmt.Println(masukMessage)
 
 			} else if isNite { //diatas jam 12 siang kemungkinan absensi pulang
 
 				tipeAbsen = "keluar"
-				err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, tipeAbsen, "siswa", id_siswa, id_kelas, "tiga")
-				if err != nil {
-					conFig.InitLog(logger, ctx, "error DeclarePublishAbsen", err, "error") // catat log
-					return nil, 500, err
-				}
+				// err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, tipeAbsen, "siswa", id_siswa, id_kelas, "tiga")
+				// if err != nil {
+				// 	conFig.InitLog(logger, ctx, "error DeclarePublishAbsen", err, "error") // catat log
+				// 	return nil, 500, err
+				// }
+
+				// // Generate message for pulang sekolah
+				// keluarMessage := helper.GenerateKeluarMessage(resSiswa.NamaLengkap.String, resSiswa.IDKelas.Kelas.String, dateTimehariini)
+				// fmt.Println(keluarMessage)
 
 			} else {
 				responseItem := map[string]interface{}{

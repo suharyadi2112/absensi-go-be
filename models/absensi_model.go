@@ -34,6 +34,7 @@ type Siswa struct {
 	PasswordLogin sql.NullString `json:"password_login"`
 	Pswd          sql.NullString `json:"pswd"`
 	IDKelas       Kelas          `json:"id_kelas"`
+	IDOrtu        OrangTua       `json:"id"`
 	Alamat        sql.NullString `json:"alamat"`
 	Email         sql.NullString `json:"email"`
 	NoHP          sql.NullString `json:"no_hp"`
@@ -57,6 +58,21 @@ type Kelas struct {
 	IDPengajar sql.NullInt64  `json:"id_pengajar"`
 	IDSemester sql.NullInt64  `json:"id_semester"`
 	Created    sql.NullString `json:"created"`
+}
+
+type OrangTua struct {
+	ID       sql.NullInt64  `json:"id"`
+	SubsId   sql.NullString `json:"subs_id"`
+	NIS      sql.NullString `json:"nis"`
+	NoHP     sql.NullString `json:"no_hp"`
+	Password sql.NullString `json:"password"`
+	PSWD     sql.NullString `json:"pswd"`
+	NamaAyah sql.NullString `json:"nama_ayah"`
+	NamaIbu  sql.NullString `json:"nama_ibu"`
+	Alamat   sql.NullString `json:"alamat"`
+	Blokir   sql.NullString `json:"blokir"`
+	Created  sql.NullString `json:"created"`
+	Updated  sql.NullString `json:"updated"`
 }
 
 type Pengajar struct {

@@ -4,7 +4,6 @@ import (
 	db "absensi/config"
 	"absensi/models"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -15,7 +14,8 @@ var logger *logrus.Logger
 
 // Conn struct yang menampung instance database
 type Conn struct {
-	DB *sql.DB
+	DB    *sql.DB
+	DBVPS *sql.DB
 }
 type AbsensiDetailJamMasuk struct {
 	Absensi *models.Absensi
@@ -35,8 +35,15 @@ func NewCon() (*Conn, error) {
 		return nil, err
 	}
 
+	dbVPS, err := db.InitDBMySqlVPS()
+	if err != nil {
+		db.InitLog(logger, ctx, "failed to initialize VPS database", err, "error") // catat log
+		return nil, err
+	}
+
 	return &Conn{
-		DB: dbG,
+		DB:    dbG,
+		DBVPS: dbVPS,
 	}, nil
 }
 
@@ -98,80 +105,6 @@ func (h *Conn) GetAbsenTopController(dateS string) (DataAbsen []*models.Absensi,
 	return absensi, nil
 }
 
-// Update absensi
-func (h *Conn) UpdateAbsenController(Keluar, tanggalHariIni string, idSiswa, idKelas int64) (err error) {
-
-	ctx := "Controller-UpdateAbsenController"
-
-	// Prepare the UPDATE query
-	stmt, err := h.DB.Prepare("UPDATE absensi SET keluar = ?, notif_out = 0 WHERE id_siswa = ? AND tgl = ? AND id_kelas = ?")
-	if err != nil {
-		db.InitLog(logger, ctx, "error query database UpdateAbsenController", err, "error") // catat log
-		return err
-	}
-	defer stmt.Close()
-	// Execute the UPDATE query
-	_, err = stmt.Exec(Keluar, idSiswa, tanggalHariIni, idKelas)
-	if err != nil {
-		db.InitLog(logger, ctx, "Error executing SQL statement UpdateAbsenController", err, "error") // catat log
-		return err
-	}
-	return nil
-}
-
-func (h *Conn) PostAbsenSiswaController(timeOnly, tanggalHariIni, tipeAbsen string, idSiswa, idKelas int64) (err error) {
-
-	ctx := "Controller-PostAbsenSiswaController"
-	var query string
-
-	// Prepare the SQL statement
-	if tipeAbsen == "masuk" {
-		query = "INSERT INTO absensi (id_siswa, id_kelas, absensi, tgl, masuk, notif_in) VALUES (?, ?, ?, ?, ?, ?)"
-	} else if tipeAbsen == "keluar" {
-		query = "INSERT INTO absensi (id_siswa, id_kelas, absensi, tgl, keluar, notif_out) VALUES (?, ?, ?, ?, ?, ?)"
-	} else {
-		db.InitLog(logger, ctx, "warning invalid tipeAbsen", nil, "warning") // catat log
-		return errors.New("invalid tipeAbsen")
-	}
-	stmt, err := h.DB.Prepare(query)
-	if err != nil {
-		db.InitLog(logger, ctx, "Error preparing SQL statement PostAbsenSiswaController", err, "error") // catat log
-		return err
-	}
-	defer stmt.Close()
-
-	// Execute the SQL statement
-	_, err = stmt.Exec(idSiswa, idKelas, "H", tanggalHariIni, timeOnly, "0")
-	if err != nil {
-		db.InitLog(logger, ctx, "Error executing SQL statement PostAbsenSiswaController", err, "error") // catat log
-		return err
-	}
-
-	return nil
-}
-
-func (h *Conn) PostAbsenGuruController(timeOnly, tanggalHariIni string, idPengajar int64) (err error) {
-
-	ctx := "Controller-PostAbsenGuruController"
-	query := "INSERT INTO absensi (id_pengajar, absensi, tgl, masuk, status_in) VALUES (?, ?, ?, ?, ?)"
-
-	stmt, err := h.DB.Prepare(query)
-	if err != nil {
-		db.InitLog(logger, ctx, "Error preparing SQL statement PostAbsenGuruController", err, "error") // catat log
-		return err
-	}
-	defer stmt.Close()
-
-	// Execute the SQL statement
-	_, err = stmt.Exec(idPengajar, "H", tanggalHariIni, timeOnly, "0")
-	if err != nil {
-		db.InitLog(logger, ctx, "Error Execute SQL statement PostAbsenGuruController", err, "error") // catat log
-		return err
-	}
-
-	return nil
-}
-
 func (h *Conn) GetOneAbsensiSiswaController(idSiswa, idKelas int64, date string) (dataOneAbsen *AbsensiDetailJamMasuk, err error) {
 
 	ctx := "Controller-GetOneAbsensiSiswaController"
@@ -213,11 +146,13 @@ func (h *Conn) GetSiswaController(nis string) (DataSiswa *models.Siswa, err erro
 						s.nama_lengkap,
 						k.kelas,
 						s.alamat,
-						s.foto
+						s.foto,
+						o.id as id_ortu,
+						o.no_hp
 					FROM siswa s
 					LEFT JOIN kelas k ON s.id_kelas = k.id_kelas
 					LEFT JOIN orangtua o ON s.nis = o.nis
-					WHERE s.nis = ?`, nis).Scan(&s.ID, &s.IDKelas.ID, &s.NIS, &s.NamaLengkap, &s.IDKelas.Kelas, &s.Alamat, &s.Foto)
+					WHERE s.nis = ?`, nis).Scan(&s.ID, &s.IDKelas.ID, &s.NIS, &s.NamaLengkap, &s.IDKelas.Kelas, &s.Alamat, &s.Foto, &s.IDOrtu.ID, &s.NoHP)
 
 	if err != nil {
 		db.InitLog(logger, ctx, "Error preparing SQL statement GetSiswaController", err, "error") // catat log
@@ -330,28 +265,7 @@ func (h *Conn) GetOneAbsensiGuruController(idPengajar int64, date string) (dataO
 	return absensiDetail, nil
 }
 
-// Update absensi guru
-func (h *Conn) UpdateAbsenGuruController(Keluar, tanggalHariIni string, idPengajar int64) (err error) {
-
-	ctx := "Controller-UpdateAbsenGuruController"
-	// Prepare the UPDATE query
-	stmt, err := h.DB.Prepare("UPDATE absensi SET keluar = ?, notif_out = 0 WHERE id_pengajar = ? AND tgl = ?")
-	if err != nil {
-		db.InitLog(logger, ctx, "Error preparing SQL statement UpdateAbsenGuruController", err, "error") // catat log
-		return err
-	}
-	defer stmt.Close()
-	// Execute the UPDATE query
-	_, err = stmt.Exec(Keluar, idPengajar, tanggalHariIni)
-	if err != nil {
-		db.InitLog(logger, ctx, "Error Execute SQL statement UpdateAbsenGuruController", err, "error") // catat log
-		return err
-	}
-
-	return nil
-}
-
-// Update absensi guru
+// insert absensi Siswa
 func (h *Conn) PostInsertAbsensiController(id_siswa, id_kelas int64, tipeMasuk string, dateTimehariini, timeonlyHariini string, notifIn int, randomString string) (err error) {
 
 	ctx := "Controller-InsertAbsensiController"
@@ -373,6 +287,34 @@ func (h *Conn) PostInsertAbsensiController(id_siswa, id_kelas int64, tipeMasuk s
 	}
 
 	db.InitLog(logger, ctx, fmt.Sprintf("Absensi for siswa %s successfully inserted", id_siswa), nil, "info")
+
+	return nil
+
+}
+
+// Insert absensi siswa
+func (h *Conn) PostInsertAbsensiWaController(randomString, sch, no_hp_ortu, masukMessage, status, dateTimehariini, tipe string) (err error) {
+
+	ctx := "Controller-InsertAbsensiWaController"
+
+	query := `
+		INSERT INTO absensi_test (ref, school, destination, message, status, created, type)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`
+	stmt, err := h.DBVPS.Prepare(query)
+	if err != nil {
+		db.InitLog(logger, ctx, "Error preparing SQL statement InsertAbsensiWAController", err, "error")
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(randomString, sch, no_hp_ortu, masukMessage, status, dateTimehariini, tipe)
+	if err != nil {
+		db.InitLog(logger, ctx, "Error executing SQL statement InsertAbsensiWAController", err, "error")
+		return err
+	}
+
+	db.InitLog(logger, ctx, fmt.Sprintf("Absensi for siswa WA %s successfully inserted", randomString), nil, "info")
 
 	return nil
 

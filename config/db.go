@@ -23,6 +23,12 @@ var (
 	dbPassword string
 	dbName     string
 
+	dbHOSTVPS     string
+	dbPORTVPS     string
+	dbUSERVPS     string
+	dbPASSWORDVPS string
+	dbNAMEVPS     string
+
 	rabbitHost     string
 	rabbitPort     string
 	rabbitUser     string
@@ -53,6 +59,12 @@ func init() {
 	dbUser = os.Getenv("DB_USER")
 	dbPassword = os.Getenv("DB_PASSWORD")
 	dbName = os.Getenv("DB_NAME")
+
+	dbHOSTVPS = os.Getenv("DB_HOST_VPS")
+	dbPORTVPS = os.Getenv("DB_PORT_VPS")
+	dbUSERVPS = os.Getenv("DB_USER_VPS")
+	dbPASSWORDVPS = os.Getenv("DB_PASSWORD_VPS")
+	dbNAMEVPS = os.Getenv("DB_NAME_VPS")
 
 	rabbitHost = os.Getenv("RABBIT_HOST")
 	rabbitPort = os.Getenv("RABBIT_PORT")
@@ -182,6 +194,25 @@ func InitDBMySql() (*sql.DB, error) {
 	err = db.Ping()
 	if err != nil {
 		InitLog(logger, ctx, "koneksi mysql ping", err, "error") // catat log
+	}
+
+	return db, nil
+}
+
+// MYSQL VPS 103.175.216.178
+func InitDBMySqlVPS() (*sql.DB, error) {
+
+	ctx := "DB-InitDBMySqlVPS"
+
+	dsn := dbUSERVPS + ":" + dbPASSWORDVPS + "@tcp(" + dbHOSTVPS + ":" + dbPORTVPS + ")/" + dbNAMEVPS
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		InitLog(logger, ctx, "koneksi mysql vps ", err, "error") // catat log
+	}
+
+	err = db.Ping()
+	if err != nil {
+		InitLog(logger, ctx, "koneksi mysql vps ping", err, "error") // catat log
 	}
 
 	return db, nil
