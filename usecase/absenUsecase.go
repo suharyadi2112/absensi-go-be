@@ -371,7 +371,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 			isMorning := parsedTime.After(morningStart) && parsedTime.Before(noonEnd)
 			isNite := parsedTime.After(afternunStart) && parsedTime.Before(niteEnd)
 
-			isMorning = true //untuk testing
+			// isMorning = true //untuk testing
 			// isNite = false   //untuk testing
 
 			fmt.Println(isMorning, isNite, "cek ketentuan jam")
