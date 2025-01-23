@@ -266,33 +266,135 @@ func (h *Conn) GetOneAbsensiGuruController(idPengajar int64, date string) (dataO
 }
 
 // insert absensi Siswa
-func (h *Conn) PostInsertAbsensiController(id_siswa, id_kelas int64, tipeMasuk string, dateTimehariini, timeonlyHariini string, notifIn int, randomString string) (err error) {
+func (h *Conn) PostInsertAbsensiSiswaController(id_siswa, id_kelas int64, tipeMasuk string, dateTimehariini, timeonlyHariini string, notif int, randomString, tipeAbsen string) (err error) {
 
-	ctx := "Controller-InsertAbsensiController"
-	query := `
+	ctx := "Controller-PostInsertAbsensiSiswaController"
+	var query string
+
+	if tipeAbsen == "masuk" { //cek tipe absen
+		query = `
 		INSERT INTO absensi (id_siswa, id_kelas, absensi, tgl, masuk, notif_in, ref_in)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`
+	} else if tipeAbsen == "keluar" {
+		query = `
+		INSERT INTO absensi (id_siswa, id_kelas, absensi, tgl, keluar, notif_out, ref_out)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`
+	} else { //tidak dalam kondisi apapun
+		db.InitLog(logger, ctx, "Tidak dalam kondisi tipe absen apapun PostInsertAbsensiSiswaController", err, "error")
+		return fmt.Errorf("invalid tipeAbsen: %s", tipeAbsen)
+	}
+
+	stmt, err := h.DB.Prepare(query)
+	if err != nil {
+		db.InitLog(logger, ctx, "Error preparing SQL statement PostInsertAbsensiSiswaController", err, "error")
+		return err
+	}
+	defer stmt.Close()
+	//exe
+	_, err = stmt.Exec(id_siswa, id_kelas, tipeMasuk, dateTimehariini, timeonlyHariini, notif, randomString)
+
+	if err != nil {
+		db.InitLog(logger, ctx, "Error executing SQL statement PostInsertAbsensiSiswaController", err, "error")
+		return err
+	}
+
+	db.InitLog(logger, ctx, fmt.Sprintf("Absensi for siswa %d successfully inserted", id_siswa), nil, "info")
+	return nil
+}
+
+func (h *Conn) PostUpdateAbsensiSiswaController(id_siswa, id_kelas int64, date, time, randomString string) (err error) {
+
+	ctx := "Controller-PostUpdateAbsensiController"
+
+	query := `
+		UPDATE absensi
+		SET keluar = ?, notif_out = ?, ref_out = ?
+		WHERE id_siswa = ? AND tgl = ? AND id_kelas = ?
 	`
 	stmt, err := h.DB.Prepare(query)
 	if err != nil {
-		db.InitLog(logger, ctx, "Error preparing SQL statement InsertAbsensiController", err, "error")
+		db.InitLog(logger, ctx, "Error preparing SQL statement PostUpdateAbsensiSiswaController", err, "error")
 		return err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(id_siswa, id_kelas, tipeMasuk, dateTimehariini, timeonlyHariini, notifIn, randomString)
+	_, err = stmt.Exec(time, "0", randomString, id_siswa, date, id_kelas)
 	if err != nil {
-		db.InitLog(logger, ctx, "Error executing SQL statement InsertAbsensiController", err, "error")
+		db.InitLog(logger, ctx, "Error executing SQL statement PostUpdateAbsensiSiswaController", err, "error")
 		return err
 	}
 
-	db.InitLog(logger, ctx, fmt.Sprintf("Absensi for siswa %s successfully inserted", id_siswa), nil, "info")
+	db.InitLog(logger, ctx, fmt.Sprintf("Absensi for siswa %d successfully updated", id_siswa), nil, "info")
 
 	return nil
-
 }
 
-// Insert absensi siswa
+// insert absensi Guru
+func (h *Conn) PostInsertAbsensiGuruController(id_pengajar int64, absensi, dateTimehariini, timeonlyHariini string, tipeAbsen string) (err error) {
+
+	ctx := "Controller-PostInsertAbsensiGuruController"
+	var query string
+
+	if tipeAbsen == "masuk" { //cek tipe absen
+		query = `
+		INSERT INTO absensi (id_pengajar, absensi, tgl, masuk, status_in)
+		VALUES (?, ?, ?, ?, ?)`
+	} else if tipeAbsen == "keluar" {
+		// query = `
+		// INSERT INTO absensi (id_pengajar, absensi, tgl, masuk, status_in)
+		// VALUES (?, ?, ?, ?, ?, ?, ?)`
+	} else { //tidak dalam kondisi apapun
+		db.InitLog(logger, ctx, "Tidak dalam kondisi tipe absen apapun PostInsertAbsensiGuruController", err, "error")
+		return fmt.Errorf("invalid tipeAbsen: %s", tipeAbsen)
+	}
+
+	stmt, err := h.DB.Prepare(query)
+	if err != nil {
+		db.InitLog(logger, ctx, "Error preparing SQL statement PostInsertAbsensiGuruController", err, "error")
+		return err
+	}
+	defer stmt.Close()
+	//exe
+	_, err = stmt.Exec(id_pengajar, absensi, dateTimehariini, timeonlyHariini, "0")
+
+	if err != nil {
+		db.InitLog(logger, ctx, "Error executing SQL statement PostInsertAbsensiGuruController", err, "error")
+		return err
+	}
+
+	db.InitLog(logger, ctx, fmt.Sprintf("Absensi for guru %d successfully inserted", id_pengajar), nil, "info")
+	return nil
+}
+
+// guru update
+func (h *Conn) PostUpdateAbsensiGuruController(id_pengajar int64, timeOnly, date string) (err error) {
+
+	ctx := "Controller-PostUpdateAbsensiController"
+
+	query := `
+		UPDATE absensi
+		SET keluar = ?, status_out = ?
+		WHERE id_pengajar = ? AND tgl = ?
+	`
+	stmt, err := h.DB.Prepare(query)
+	if err != nil {
+		db.InitLog(logger, ctx, "Error preparing SQL statement PostUpdateAbsensiGuruController", err, "error")
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(timeOnly, "0", id_pengajar, date)
+	if err != nil {
+		db.InitLog(logger, ctx, "Error executing SQL statement PostUpdateAbsensiGuruController", err, "error")
+		return err
+	}
+
+	db.InitLog(logger, ctx, fmt.Sprintf("Absensi for guru %d successfully updated", id_pengajar), nil, "info")
+
+	return nil
+}
+
+// Insert absensi text WA
 func (h *Conn) PostInsertAbsensiWaController(randomString, sch, no_hp_ortu, masukMessage, status, dateTimehariini, tipe string) (err error) {
 
 	ctx := "Controller-InsertAbsensiWaController"

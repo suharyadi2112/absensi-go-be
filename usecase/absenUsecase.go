@@ -135,22 +135,32 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 			keluar := cAbsen.Absensi.Keluar
 
 			if jam_masuk.Valid { //tidak boleh null
-				jamFix, err := calculateHoursDifference(dateTimehariini, jam_masuk.String) //cek veda jam
+				jamFix, err := calculateHoursDifference(dateTimehariini, jam_masuk.String) //cek jeda jam
 				if err != nil {
 					conFig.InitLog(logger, ctx, "error calculateHoursDifference", err, "error") // catat log
 					return nil, 500, err
 				}
 				jamFixCon = jamFix //assign jam fix
-				fmt.Println(jamFix, "masokkk")
+				fmt.Println(jamFix, "perbedaan jam")
 			}
-			if jamFixCon > 0 {
+			if jamFixCon > 0 { //jeda waktu absen balek
 				if !keluar.Valid {
 
-					err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, "absenready", "siswa", id_siswa, id_kelas, "satu")
+					err = controller.PostUpdateAbsensiSiswaController(id_siswa, id_kelas, tanggalhariIni, timeonlyHariini, randomString) //untuk update absen keluar
 					if err != nil {
-						conFig.InitLog(logger, ctx, "error DeclarePublishAbsen", err, "error") // catat log
+						conFig.InitLog(logger, ctx, "error PostUpdateAbsensiSiswaController Keluar", err, "error")
 						return nil, 500, err
 					}
+					// Generate message for pulang sekolah
+					keluarMessage := helper.GenerateKeluarMessage(resSiswa.NamaLengkap.String, resSiswa.IDKelas.Kelas.String, dateTimehariini)
+					err = controller.PostInsertAbsensiWaController(randomString, sch, no_hp_ortu, keluarMessage, "0", dateTimehariini, "out")
+
+					if err != nil {
+						conFig.InitLog(logger, ctx, "error PostInsertAbsensiWaController keluar", err, "error")
+					}
+
+					fmt.Println(keluarMessage)
+
 					r.PushPusher(formCode) //sendPusher
 
 					// Create response structure
@@ -175,7 +185,7 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 				responseItem := map[string]interface{}{
 					"Message": "Anda sudah melakukan absensi",
 				}
-				conFig.InitLog(logger, ctx, "sudah melakukan absen #k3k3", nil, "info") // catat log//
+				conFig.InitLog(logger, ctx, fmt.Sprintf("Sudah melakukan absen different jam %s #k3k3", jamFixCon), nil, "info") // catat log
 				return responseItem, 400, nil
 			}
 
@@ -186,56 +196,58 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 				conFig.InitLog(logger, ctx, "Error parsing time", err, "error") // catat log
 				return nil, 500, err
 			}
-			// morningStart, _ := time.Parse("15:04:05", "05:00:00")
-			// noonEnd, _ := time.Parse("15:04:05", "10:30:00")
-
-			// afternunStart, _ := time.Parse("15:04:05", "10:30:00")
-			// niteEnd, _ := time.Parse("15:04:05", "21:00:00")
-
-			//JAM TESTING
-			morningStart, _ := time.Parse("15:04:05", "00:01:00")
-			noonEnd, _ := time.Parse("15:04:05", "23:59:00")
-			afternunStart, _ := time.Parse("15:04:05", "12:00:00")
+			morningStart, _ := time.Parse("15:04:05", "05:00:00")
+			noonEnd, _ := time.Parse("15:04:05", "10:30:00")
+			afternunStart, _ := time.Parse("15:04:05", "10:30:00")
 			niteEnd, _ := time.Parse("15:04:05", "21:00:00")
 
 			isMorning := parsedTime.After(morningStart) && parsedTime.Before(noonEnd)
 			isNite := parsedTime.After(afternunStart) && parsedTime.Before(niteEnd)
 
+			// isMorning = true //untuk testing
+			// isNite = false   //untuk testing
+
 			fmt.Println(isMorning, isNite, "cek ketentuan jam")
 
 			var tipeAbsen string
-			if isMorning {
+			if isMorning { //pagi
 
 				tipeAbsen = "masuk"
-				// err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, tipeAbsen, "siswa", id_siswa, id_kelas, "dua") //untuk RABITMQ
-				// if err != nil {
-				// 	conFig.InitLog(logger, ctx, "error DeclarePublishAbsen", err, "error") // catat log
-				// 	return nil, 500, err
-				// }
-
-				//insert table absensi + table wa
-				// err = controller.PostInsertAbsensiController(id_siswa, id_kelas, "H", dateTimehariini, timeonlyHariini, 0, randomString)
-				// if err != nil {
-				// 	conFig.InitLog(logger, ctx, "error PostInsertAbsensiController", err, "error")
-				// 	return nil, 500, err
-				// }
-
+				// err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, tipeAbsen, "siswa", id_siswa, id_kelas, "dua") //RABbITMQ
+				err = controller.PostInsertAbsensiSiswaController(id_siswa, id_kelas, "H", dateTimehariini, timeonlyHariini, 0, randomString, tipeAbsen) //insert table absensi
+				if err != nil {
+					conFig.InitLog(logger, ctx, "error PostInsertAbsensiSiswaController Masuk", err, "error")
+					return nil, 500, err
+				}
+				//insert table wa
 				masukMessage := helper.GenerateMasukMessage(resSiswa.NamaLengkap.String, resSiswa.IDKelas.Kelas.String, dateTimehariini)
 				err = controller.PostInsertAbsensiWaController(randomString, sch, no_hp_ortu, masukMessage, "0", dateTimehariini, "in")
+
+				if err != nil {
+					conFig.InitLog(logger, ctx, "error PostInsertAbsensiWaController masuk", err, "error")
+				}
+
 				fmt.Println(masukMessage)
 
 			} else if isNite { //diatas jam 12 siang kemungkinan absensi pulang
 
 				tipeAbsen = "keluar"
-				// err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, tipeAbsen, "siswa", id_siswa, id_kelas, "tiga")
-				// if err != nil {
-				// 	conFig.InitLog(logger, ctx, "error DeclarePublishAbsen", err, "error") // catat log
-				// 	return nil, 500, err
-				// }
+				// err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, tipeAbsen, "siswa", id_siswa, id_kelas, "tiga") //RABBITMQ
+				err = controller.PostInsertAbsensiSiswaController(id_siswa, id_kelas, "H", dateTimehariini, timeonlyHariini, 0, randomString, tipeAbsen)
+				if err != nil {
+					conFig.InitLog(logger, ctx, "error PostInsertAbsensiSiswaController Keluar", err, "error")
+					return nil, 500, err
+				}
 
-				// // Generate message for pulang sekolah
-				// keluarMessage := helper.GenerateKeluarMessage(resSiswa.NamaLengkap.String, resSiswa.IDKelas.Kelas.String, dateTimehariini)
-				// fmt.Println(keluarMessage)
+				// Generate message for pulang sekolah
+				keluarMessage := helper.GenerateKeluarMessage(resSiswa.NamaLengkap.String, resSiswa.IDKelas.Kelas.String, dateTimehariini)
+				err = controller.PostInsertAbsensiWaController(randomString, sch, no_hp_ortu, keluarMessage, "0", dateTimehariini, "out")
+
+				if err != nil {
+					conFig.InitLog(logger, ctx, "error PostInsertAbsensiWaController keluar", err, "error")
+				}
+
+				fmt.Println(keluarMessage)
 
 			} else {
 				responseItem := map[string]interface{}{
@@ -262,7 +274,10 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 
 		}
 
-	} else if countGuru > 0 { //section guru
+		/*
+			SECTIONN GURUUUUUUUUUUUUUUUU
+		*/
+	} else if countGuru > 0 {
 
 		resGuru, err := controller.GetGuruController(formCode)
 		if err != nil {
@@ -276,15 +291,13 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 		alamat_guru := resGuru.Alamat.String
 		foto_guru := resGuru.Foto.String
 
-		logrus.Info(id_pengajar, nip, nama_guru, alamat_guru, foto_guru) //pakai & untuk cepat lok pointer
-
 		cAbsenGuru, err := controller.GetOneAbsensiGuruController(id_pengajar, tanggalhariIni)
 		if err != nil {
 			conFig.InitLog(logger, ctx, "error GetOneAbsensiGuruController", err, "error") // catat log
 			return nil, 500, err
 		}
 
-		if cAbsenGuru != nil {
+		if cAbsenGuru != nil { //jika absen guru tersebut ada ditanggal tsb
 			var jamFixConGur int
 			jam_masuk := cAbsenGuru.JMasuk
 			keluarGur := cAbsenGuru.Absensi.Keluar
@@ -297,14 +310,17 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 				jamFixConGur = jamFixGur //assign jam fix
 			}
 
-			if jamFixConGur > 0 {
+			logrus.Info(jamFixConGur, " jeda absen guru dari masuk")
+			if jamFixConGur > 0 { //jeda absen balek
 
 				if !keluarGur.Valid {
-					err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, "", "guru", id_pengajar, 0, "empat")
+
+					err = controller.PostUpdateAbsensiGuruController(id_pengajar, timeonlyHariini, tanggalhariIni) //untuk update absen keluar
 					if err != nil {
-						conFig.InitLog(logger, ctx, "error DeclarePublishAbsen", err, "error") // catat log
+						conFig.InitLog(logger, ctx, "error PostUpdateAbsensiGuruController Keluar", err, "error")
 						return nil, 500, err
 					}
+
 					r.PushPusher(formCode) //sendPusher
 
 					// Create response structure
@@ -337,14 +353,44 @@ func (r *AbsenUsecase) PostAbsenTopUsecase(formCode, tanggalhariIni, dateTimehar
 				return responseItem, 400, nil
 			}
 
-		} else {
+		} else { //Guru baru absen
 
 			logrus.Info(cAbsenGuru)
-			err = r.DeclarePublishAbsen(timeonlyHariini, tanggalhariIni, "", "guru", id_pengajar, 0, "lima")
+
+			parsedTime, err := time.Parse("15:04:05", timeonlyHariini)
 			if err != nil {
-				conFig.InitLog(logger, ctx, "error DeclarePublishAbsen", err, "error") // catat log
+				conFig.InitLog(logger, ctx, "Error parsing time", err, "error") // catat log
 				return nil, 500, err
 			}
+			//set waktu untuk guru
+			morningStart, _ := time.Parse("15:04:05", "05:00:00")
+			noonEnd, _ := time.Parse("15:04:05", "10:30:00")
+			afternunStart, _ := time.Parse("15:04:05", "10:30:00")
+			niteEnd, _ := time.Parse("15:04:05", "21:00:00")
+
+			isMorning := parsedTime.After(morningStart) && parsedTime.Before(noonEnd)
+			isNite := parsedTime.After(afternunStart) && parsedTime.Before(niteEnd)
+
+			isMorning = true //untuk testing
+			// isNite = false   //untuk testing
+
+			fmt.Println(isMorning, isNite, "cek ketentuan jam")
+
+			if isMorning { //pagi
+				err = controller.PostInsertAbsensiGuruController(id_pengajar, "H", dateTimehariini, timeonlyHariini, "masuk") //insert table absensi
+				if err != nil {
+					conFig.InitLog(logger, ctx, "error PostInsertAbsensiGuruController Masuk", err, "error")
+					return nil, 500, err
+				}
+
+			} else {
+				responseItem := map[string]interface{}{
+					"Message": "Anda sudah melakukan absensi",
+				}
+				conFig.InitLog(logger, ctx, "bukan waktu sekolah setting untuk guru", nil, "info") // catat log
+				return responseItem, 400, nil
+			}
+
 			r.PushPusher(formCode) //sendPusher
 
 			// Create response structure
