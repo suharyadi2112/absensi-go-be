@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
 	"io"
 	"os"
 	"time"
@@ -12,7 +11,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/pusher/pusher-http-go/v5"
 	"github.com/sirupsen/logrus"
-	"github.com/streadway/amqp"
 )
 
 // Package-level variables
@@ -218,23 +216,23 @@ func InitDBMySqlVPS() (*sql.DB, error) {
 	return db, nil
 }
 
-// RABBIT MQ
-func InitRabbitMQ() (*amqp.Channel, error) {
-	ctx := "DB-InitRabbitMQ"
+// // RABBIT MQ
+// func InitRabbitMQ() (*amqp.Channel, error) {
+// 	ctx := "DB-InitRabbitMQ"
 
-	connStr := fmt.Sprintf("amqp://%s:%s@%s:%s/", rabbitUser, rabbitPassword, rabbitHost, rabbitPort)
-	conn, err := amqp.Dial(connStr)
-	if err != nil {
-		InitLog(logger, ctx, "koneksi rabbitMQ", err, "error") // catat log
-	}
+// 	connStr := fmt.Sprintf("amqp://%s:%s@%s:%s/", rabbitUser, rabbitPassword, rabbitHost, rabbitPort)
+// 	conn, err := amqp.Dial(connStr)
+// 	if err != nil {
+// 		InitLog(logger, ctx, "koneksi rabbitMQ", err, "error") // catat log
+// 	}
 
-	ch, err := conn.Channel()
-	if err != nil {
-		InitLog(logger, ctx, "koneksi rabbitMQ Ping", err, "error") // catat log
-	}
+// 	ch, err := conn.Channel()
+// 	if err != nil {
+// 		InitLog(logger, ctx, "koneksi rabbitMQ Ping", err, "error") // catat log
+// 	}
 
-	return ch, nil
-}
+// 	return ch, nil
+// }
 
 // PUSHER
 func InitPusher() pusher.Client {

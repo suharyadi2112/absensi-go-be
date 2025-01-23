@@ -54,16 +54,16 @@ func init() {
 
 // Fungsi untuk inisialisasi handler dengan instance database
 func NewConUsecase() (*AbsenUsecase, error) {
-	ctx := "Usecase-NewConUsecase"
-	rabMQD, err := conFig.InitRabbitMQ()
-	if err != nil {
-		conFig.InitLog(logger, ctx, "failed to initialize rabbit", err, "error") // catat log
-		return nil, fmt.Errorf("failed to initialize rabbit: %w", err)
-	}
+	// ctx := "Usecase-NewConUsecase"
+	// rabMQD, err := conFig.InitRabbitMQ()
+	// if err != nil {
+	// 	conFig.InitLog(logger, ctx, "failed to initialize rabbit", err, "error") // catat log
+	// 	return nil, fmt.Errorf("failed to initialize rabbit: %w", err)
+	// }
 	pusHER := conFig.InitPusher()
 
 	return &AbsenUsecase{
-		RabMQ:  rabMQD,
+		// RabMQ:  rabMQD,
 		Pusher: pusHER,
 	}, nil
 }
